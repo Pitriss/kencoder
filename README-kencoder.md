@@ -23,6 +23,22 @@ After installing `encoder`, reconnect the keyboard (or log out and back in)
 to allow the device ACL to be refreshed. Run `udevadm info` and check
 `getfacl /dev/hidrawX` if permission problems persist. Never run the GUI as root.
 
+## Repository layout
+
+- `cli/`: original `encoder.c` and HID control sources, plus the CLI Makefile.
+- `gui/`: Qt 6 GUI (unchanged source location).
+- `packaging/udev/`: authoritative udev rules `70-encoder-uaccess.rules` and `99-encoder.rules`.
+  The Debian `debian/encoder.udev` entry is only a symbolic link to the `99` rule;
+  `dh_installudev --priority=99` installs that rule and the `encoder.install` manifest
+  installs the `70` rule. The insecure upstream `97-omen_encoder.rules` is no longer distributed.
+  Any manually installed copy of the old rule must be reviewed separately by the administrator.
+- `packaging/ci/`: independent, tag-triggered Debian package builds.
+- `docs/man/man1/`: manual page for the CLI.
+- `build/cli/encoder` and `build/gui/kencoder`: local build outputs (Git-ignored).
+
+The root `Makefile` delegates `make`, `make install` and `make clean` to `cli/`.
+The GUI and the two Debian packages remain independent as before.
+
 ## Build on Debian 13
 
 ```bash
@@ -36,12 +52,16 @@ dpkg-buildpackage -b -us -uc
 Two `.deb` packages are created in the parent directory. Install both
 with `sudo apt-get install ./encoder_*.deb ./kencoder_*.deb` from that directory.
 
-For a CLI-only build, `make` builds the upstream-compatible `encoder` command.
+For a CLI-only build, `make` builds the upstream-compatible `encoder` command
+at `build/cli/encoder`. `make install` installs the CLI and its manual page.
 For a standalone GUI build, use:
 
 ```bash
 cmake -S gui -B build/gui && cmake --build build/gui --parallel
 ```
+
+To run the locally built GUI with the locally built CLI before installing packages, use
+`PATH="$PWD/build/cli:$PATH" ./build/gui/kencoder`.
 
 The command `QT_QPA_PLATFORM=offscreen ./build/gui/kencoder --self-test`
 smoke-tests GUI creation without hardware or a graphical display.
@@ -49,23 +69,26 @@ This does **not** validate USB protocol behavior.
 
 ## CI / Releases
 
-`.github/workflows/debian-release.yml` builds on native amd64 and arm64 runners,
-inside **Debian 13 (`debian:trixie`)** containers. The workflow is manual or
-triggered by tags `v*`, not by every push.
+Tagged releases use two independent Debian 13 build pipelines for `encoder` (CLI)
+and `kencoder` (Qt6 GUI), each producing amd64 and arm64 `.deb` packages.
+Only the tagged component is rebuilt; the other component's **exact** .deb files
+are reused from the previous published GitHub release. Every release contains
+four `.deb` files, a checksum manifest and version metadata.
 
-- On a manual run, two artifact bundles are uploaded (one per architecture).
-- On a release tag, four `.deb` files and a SHA256SUMS manifest are attached
-  to the GitHub release.
-- Before a new tag, update `debian/changelog` to match the tag's version.
-- Package name/version and ELF architecture are checked during CI.
-
-Example: after testing and committing, push tag `v0.1.0` to publish the
-first release. The build has not been tested on real hardware here.
+Use `v0.1.0` only for the initial joint release, `encoder-vX.Y.Z` for subsequent
+CLI releases, and `kencoder-vX.Y.Z` for subsequent GUI releases. Both
+components have independent package versions. The GUI requires the minimum
+CLI version declared in `packaging/ci/encoder-min-version`.
+See [docs/CI-RELEASES.md](docs/CI-RELEASES.md) for compatibility checks,
+local testing, how to tag, and release rollback instructions.
 
 ## Licensing
 
-Original C code is BSD-3-Clause, as stated in the upstream source files.
-New GUI and packaging use BSD-3-Clause. See `LICENSE` and `debian/copyright`.
+KEncoder is distributed under BSD-3-Clause. The original CLI code and
+Makefile retain the 2020 copyright of Taras Zakharchenko; the fork's changes
+and new GUI, packaging and manual documentation are attributed to Pitriss
+(2026). Both notices are retained in `LICENSE`. The Debian source package
+records the per-file attribution in `debian/copyright` (DEP-5).
 
 ## GUI controls
 
@@ -111,5 +134,5 @@ Hodnota jasu v GUI je vždy předvolená `1`; nastavení podsvícení se neuklá
 
 Kliknutí na ikonu v systémovém panelu střídavě schová a zobrazí okno.
 Pravé tlačítko otevře nabídku s položkou **Ukončit**.
-Balíček `kencoder` již má povinnou závislost na `encoder` stejné verze;
+Balíček `kencoder` má povinnou minimální verzovou závislost na `encoder`;
 při ručním spuštění GUI se absence CLI přesto oznamuje červeně.

@@ -1,0 +1,16 @@
+Source: kencoder
+Section: utils
+Priority: optional
+Maintainer: Pitriss <5106460+Pitriss@users.noreply.github.com>
+Build-Depends: debhelper-compat (= 13), cmake, qt6-base-dev
+Standards-Version: 4.7.0
+Rules-Requires-Root: no
+Homepage: https://github.com/Pitriss/kencoder
+Vcs-Browser: https://github.com/Pitriss/kencoder
+Vcs-Git: https://github.com/Pitriss/kencoder.git
+
+Package: kencoder
+Architecture: linux-any
+Depends: encoder (>= @MIN_ENCODER_VERSION@), ${shlibs:Depends}, ${misc:Depends}, qt6-qpa-plugins
+Description: Qt6 GUI for HP OMEN Encoder lighting
+ KDE Plasma 6 friendly lighting controls for the HP OMEN Encoder keyboard.

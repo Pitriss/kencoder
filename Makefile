@@ -1,5 +1,6 @@
 
 # Copyright 2020 Taras Zakharchenko
+# Copyright 2026 Pitriss
 
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -23,23 +24,16 @@
 # TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-INCLUDE_DIRS=
-LIBS=
-PROGRAM=encoder
-PREFIX?=/usr
+# Root compatibility wrapper. Source files and the real build logic live in cli/.
+PREFIX ?= /usr
 
-CFLAGS=$(INCLUDE_DIRS)
-LDFLAGS=$(LIBS)
+.PHONY: all install clean
 
-%.o: %.c
-	$(CC) -c -o $@ $< $(CFLAGS)
+all:
+	$(MAKE) -C cli all
 
-$(PROGRAM): encoder.o keyboard_control.o
-	$(CC) -o $@ $^ $(LDFLAGS)
-
-install: $(PROGRAM)
-	install -Dm755 $(PROGRAM) $(DESTDIR)$(PREFIX)/bin/$(PROGRAM)
+install:
+	$(MAKE) -C cli install PREFIX="$(PREFIX)" DESTDIR="$(DESTDIR)"
 
 clean:
-	rm -f *.o
-	rm -f $(PROGRAM)
+	$(MAKE) -C cli clean

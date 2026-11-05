@@ -12,7 +12,7 @@ override_dh_auto_build:
 	cmake --build build/gui --parallel
 
 override_dh_auto_install:
-	install -Dm755 encoder debian/encoder/usr/bin/encoder
+	install -Dm755 build/cli/encoder debian/encoder/usr/bin/encoder
 	DESTDIR="$(CURDIR)/debian/kencoder" cmake --install build/gui --prefix /usr
 
 # Sort after the upstream 97-omen_encoder.rules if it was manually installed.

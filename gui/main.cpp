@@ -9,6 +9,7 @@
 #include <QComboBox>
 #include <QCoreApplication>
 #include <QDir>
+#include <QDebug>
 #include <QEvent>
 #include <QFile>
 #include <QFileInfo>
@@ -258,41 +259,75 @@ public:
 
     bool selfTest()
     {
-        if (windowTitle().isEmpty() || windowIcon().isNull() || buttons_.size() != 2 ||
-            animation_->currentData().toString() != QLatin1String("static") ||
-            brightness_->value() != 1 || speed_->value() != 1 ||
-            speed_->isEnabled() || speedValue_->isEnabled() ||
-            !healthLed_ || !healthText_ || !healthTitle_ || !statusField_ ||
-            !statusField_->isReadOnly() || !trayToggleAction_ ||
-            trayToggleAction_->text() != QLatin1String("Zobrazit") ||
-            healthTitle_->text() != QLatin1String("Stav") ||
-            statusField_->text() != QLatin1String("HP OMEN Encoder (03f0:3341)"))
+        // A failing headless CI test must identify the failed condition.
+        auto require = [](bool condition, const char *description) {
+            if (!condition)
+                qCritical().noquote() << "KEncoder self-test FAIL:" << description;
+            return condition;
+        };
+        if (!require(!windowTitle().isEmpty(), "window title") ||
+            !require(!windowIcon().isNull(), "embedded window icon") ||
+            !require(buttons_.size() == 2, "button count") ||
+            !require(animation_->currentData().toString() == QLatin1String("static"),
+                     "default animation") ||
+            !require(brightness_->value() == 1, "default brightness") ||
+            !require(speed_->value() == 1, "default speed") ||
+            !require(!speed_->isEnabled() && !speedValue_->isEnabled(),
+                     "static mode must disable speed") ||
+            !require(healthLed_ && healthText_ && healthTitle_ && statusField_,
+                     "status widgets") ||
+            !require(statusField_ && statusField_->isReadOnly(), "read-only status field") ||
+            !require(trayToggleAction_ != nullptr, "system tray action") ||
+            !require(trayToggleAction_ &&
+                     trayToggleAction_->text() == QLatin1String("Zobrazit"),
+                     "initial tray action") ||
+            !require(healthTitle_ && healthTitle_->text() == QLatin1String("Stav"),
+                     "status title") ||
+            !require(statusField_ &&
+                     statusField_->text() == QLatin1String("HP OMEN Encoder (03f0:3341)"),
+                     "initial device status"))
             return false;
         // Status field is the last item, outside the padded content layout.
         auto *outer = qobject_cast<QVBoxLayout *>(layout());
-        if (!outer || !outer->contentsMargins().isNull() ||
-            outer->count() != 2 || outer->itemAt(1)->widget() != statusField_)
+        if (!require(outer != nullptr, "outer layout exists"))
             return false;
-        if (classifyHealth(true, true, true, true, true, true) != HealthLevel::Good ||
-            classifyHealth(true, true, false, false, false, true) != HealthLevel::Warning ||
-            classifyHealth(true, true, true, false, true, true) != HealthLevel::Warning ||
-            classifyHealth(false, true, true, true, true, true) != HealthLevel::Error ||
-            classifyHealth(true, false, true, true, true, true) != HealthLevel::Error ||
-            classifyHealth(true, true, true, true, false, true) != HealthLevel::Error ||
-            classifyHealth(true, true, true, true, true, false) != HealthLevel::Error)
+        if (!require(outer->contentsMargins().isNull(), "zero outer margins") ||
+            !require(outer->count() == 2, "two outer layout elements") ||
+            !require(outer->itemAt(1)->widget() == statusField_,
+                     "status field at bottom edge"))
+            return false;
+        if (!require(classifyHealth(true, true, true, true, true, true) == HealthLevel::Good,
+                     "all healthy state") ||
+            !require(classifyHealth(true, true, false, false, false, true) == HealthLevel::Warning,
+                     "missing udev rule state") ||
+            !require(classifyHealth(true, true, true, false, true, true) == HealthLevel::Warning,
+                     "udev rule not applied") ||
+            !require(classifyHealth(false, true, true, true, true, true) == HealthLevel::Error,
+                     "missing CLI state") ||
+            !require(classifyHealth(true, false, true, true, true, true) == HealthLevel::Error,
+                     "missing device state") ||
+            !require(classifyHealth(true, true, true, true, false, true) == HealthLevel::Error,
+                     "inaccessible device state") ||
+            !require(classifyHealth(true, true, true, true, true, false) == HealthLevel::Error,
+                     "command error state"))
             return false;
         animation_->setCurrentIndex(1);
-        if (!speed_->isEnabled() || !speedValue_->isEnabled() || !speedCaption_->isEnabled())
+        if (!require(speed_->isEnabled() && speedValue_->isEnabled() &&
+                     speedCaption_->isEnabled(), "animation must enable speed"))
             return false;
         animation_->setCurrentIndex(0);
-        if (speed_->isEnabled() || speedValue_->isEnabled() || speedCaption_->isEnabled())
+        if (!require(!speed_->isEnabled() && !speedValue_->isEnabled() &&
+                     !speedCaption_->isEnabled(), "static mode must disable speed"))
             return false;
         showStatus(QStringLiteral("Test zprávy"), 5000);
-        if (!statusReset_.isActive() || statusField_->text() != QLatin1String("Test zprávy"))
+        if (!require(statusField_->text() == QStringLiteral("Test zprávy"),
+                     "temporary status text"))
+            return false;
+        if (!require(statusReset_.isActive(), "temporary status timer active"))
             return false;
         statusReset_.stop();
         restoreDeviceStatus();
-        return statusField_->text() == deviceText_;
+        return require(statusField_->text() == deviceText_, "restore device status");
     }
 
 protected:
@@ -627,8 +662,14 @@ int main(int argc, char **argv)
     app.setApplicationName(QStringLiteral("kencoder"));
     app.setOrganizationName(QStringLiteral("Pitriss"));
     KEncoderWindow window;
-    if (QCoreApplication::arguments().contains(QStringLiteral("--self-test")))
-        return window.selfTest() ? 0 : 1;
+    if (QCoreApplication::arguments().contains(QStringLiteral("--self-test"))) {
+        // QTimer is tested with the real Qt event loop running. The headless
+        // self-test never shows a window or accesses the HID device.
+        QTimer::singleShot(0, &window, [&window] {
+            QCoreApplication::exit(window.selfTest() ? 0 : 1);
+        });
+        return app.exec();
+    }
     window.show();
     return app.exec();
 }

@@ -1,0 +1,2 @@
+# HP OMEN Encoder: apply seat-based access before 73-seat-late.rules.
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="03f0", ATTRS{idProduct}=="3341", TAG+="uaccess"

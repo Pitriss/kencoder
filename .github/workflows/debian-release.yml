@@ -1,17 +1,25 @@
-name: Debian 13 (amd64 + arm64)
+name: Debian 13 - independent encoder and kencoder releases
 
 on:
-  workflow_dispatch:
   push:
     tags:
       - 'v*'
+      - 'encoder-v*'
+      - 'kencoder-v*'
 
 permissions:
   contents: read
 
+# Never publish two independent component releases at the same time.
+concurrency:
+  group: kencoder-debian-releases
+  queue: max
+  cancel-in-progress: false
+
 jobs:
-  build:
-    name: Build Debian 13 / ${{ matrix.arch }}
+  build-cli:
+    name: encoder / ${{ matrix.arch }}
+    if: startsWith(github.ref_name, 'encoder-v') || startsWith(github.ref_name, 'v')
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -21,73 +29,84 @@ jobs:
           - { arch: arm64, runner: ubuntu-24.04-arm }
     steps:
       - uses: actions/checkout@v4
-      - name: Build and verify split packages (Debian Trixie)
+      - name: Build encoder (.deb) on Debian 13
         env:
-          EXPECTED_ARCH: ${{ matrix.arch }}
+          CI_COMPONENT: encoder
+          CI_ARCH: ${{ matrix.arch }}
+          CI_TAG: ${{ github.ref_name }}
         shell: bash
         run: |
           set -euo pipefail
-          docker run --rm --platform "linux/${EXPECTED_ARCH}" \
-            -e EXPECTED_ARCH -e GITHUB_REF_NAME -e GITHUB_REF_TYPE \
+          docker run --rm --platform "linux/${CI_ARCH}" \
+            -e CI_COMPONENT -e CI_ARCH -e CI_TAG \
             -v "$PWD:/src/kencoder" -w /src/kencoder \
-            debian:trixie bash -euc '
-              export DEBIAN_FRONTEND=noninteractive
-              apt-get update
-              apt-get install -y --no-install-recommends \
-                build-essential cmake qt6-base-dev debhelper fakeroot dpkg-dev file
-              test "$(dpkg --print-architecture)" = "$EXPECTED_ARCH"
-              if [ "$GITHUB_REF_TYPE" = tag ]; then
-                test "$GITHUB_REF_NAME" = "v$(dpkg-parsechangelog -S Version)"
-              fi
-              dpkg-buildpackage -b -us -uc -j2
-              mkdir -p dist
-              cp -v ../encoder_*.deb ../kencoder_*.deb dist/
-              test "$(find dist -maxdepth 1 -name "*.deb" | wc -l)" -eq 2
-              for pkg in dist/*.deb; do
-                test "$(dpkg-deb -f "$pkg" Architecture)" = "$EXPECTED_ARCH"
-                dpkg-deb -f "$pkg" Package Version Architecture Depends
-              done
-              dpkg-deb -c dist/encoder_*.deb | grep -q "/usr/lib/udev/rules.d/99-encoder.rules"
-              dpkg-deb -c dist/kencoder_*.deb | grep -q "/usr/share/applications/kencoder.desktop"
-              ./encoder -h >/dev/null
-              QT_QPA_PLATFORM=offscreen ./build/gui/kencoder --self-test
-            '
+            debian:trixie bash packaging/ci/build-in-container.sh
       - uses: actions/upload-artifact@v4
         with:
-          name: debian13-${{ matrix.arch }}
-          path: dist/*.deb
+          name: encoder-${{ matrix.arch }}
+          path: dist/encoder_*.deb
+          if-no-files-found: error
+
+  build-gui:
+    name: kencoder / ${{ matrix.arch }}
+    if: startsWith(github.ref_name, 'kencoder-v') || startsWith(github.ref_name, 'v')
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: amd64, runner: ubuntu-24.04 }
+          - { arch: arm64, runner: ubuntu-24.04-arm }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build kencoder (.deb) on Debian 13
+        env:
+          CI_COMPONENT: kencoder
+          CI_ARCH: ${{ matrix.arch }}
+          CI_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --platform "linux/${CI_ARCH}" \
+            -e CI_COMPONENT -e CI_ARCH -e CI_TAG \
+            -v "$PWD:/src/kencoder" -w /src/kencoder \
+            debian:trixie bash packaging/ci/build-in-container.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kencoder-${{ matrix.arch }}
+          path: dist/kencoder_*.deb
           if-no-files-found: error
 
   release:
-    name: Publish 4 packages
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
+    name: Verify and publish 4 .deb packages
+    needs: [build-cli, build-gui]
+    if: >-
+      ${{ always() && !cancelled() &&
+          (needs.build-cli.result == 'success' || needs.build-cli.result == 'skipped') &&
+          (needs.build-gui.result == 'success' || needs.build-gui.result == 'skipped') }}
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
+      - name: Download newly built CLI packages
+        if: startsWith(github.ref_name, 'encoder-v') || startsWith(github.ref_name, 'v')
+        uses: actions/download-artifact@v4
         with:
-          pattern: debian13-*
-          path: release
+          pattern: encoder-*
+          path: dist
           merge-multiple: true
-      - name: Verify release contents
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$(find release -maxdepth 1 -name "*.deb" | wc -l)" -eq 4
-          for arch in amd64 arm64; do
-            test "$(find release -name "encoder_*_${arch}.deb" | wc -l)" -eq 1
-            test "$(find release -name "kencoder_*_${arch}.deb" | wc -l)" -eq 1
-          done
-          (cd release && sha256sum ./*.deb > SHA256SUMS)
-      - name: Create GitHub release
+      - name: Download newly built GUI packages
+        if: startsWith(github.ref_name, 'kencoder-v') || startsWith(github.ref_name, 'v')
+        uses: actions/download-artifact@v4
+        with:
+          pattern: kencoder-*
+          path: dist
+          merge-multiple: true
+      - name: Reuse previous assets, verify package compatibility and publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
+          CI_TAG: ${{ github.ref_name }}
         shell: bash
-        run: |
-          set -euo pipefail
-          gh release create "$GITHUB_REF_NAME" release/*.deb release/SHA256SUMS \
-            --verify-tag --title "$GITHUB_REF_NAME" \
-            --notes 'Debian 13 packages: encoder and kencoder, amd64 and arm64.'
+        run: bash packaging/ci/publish-release.sh

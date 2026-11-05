@@ -1,0 +1,87 @@
+#!/bin/sh
+# Safe migration from the original world-writable HP OMEN Encoder udev rule.
+set -e
+
+legacy=/etc/udev/rules.d/97-omen_encoder.rules
+backup=/etc/udev/rules.d/97-omen_encoder.rules.kencoder-disabled
+state_dir=/var/lib/encoder
+state_file=$state_dir/legacy-udev-migration
+
+original_rule() {
+    [ -f "$1" ] && [ ! -L "$1" ] &&
+        printf '%s\n' 'KERNEL=="hidraw*", ATTRS{idVendor}=="03f0", ATTRS{idProduct}=="3341", SUBSYSTEM=="hidraw", MODE="0666", GROUP="users"' | cmp -s - "$1"
+}
+
+warn() {
+    printf 'encoder: %s\n' "$1" >&2
+}
+
+create_mask() {
+    # State must be written first: an interrupted configure can be retried.
+    mkdir -p "$state_dir"
+    umask 077
+    printf '%s\n' "$1" > "$state_file"
+    ln -s /dev/null "$legacy"
+    warn 'legacy 97-omen_encoder.rules disabled; use the installed 70/99 rules (reconnect keyboard).'
+}
+
+case "$1" in
+    configure)
+        if [ -L "$legacy" ]; then
+            if [ "$(readlink "$legacy")" != /dev/null ]; then
+                warn "custom symlink found at $legacy; leaving unchanged."
+            fi
+        elif [ -e "$legacy" ]; then
+            if ! original_rule "$legacy"; then
+                warn "custom/modified rule at $legacy; leaving unchanged. Review its permissions manually."
+            elif dpkg-query -S "$legacy" >/dev/null 2>&1; then
+                warn "rule at $legacy is owned by another package; leaving unchanged."
+            elif [ -e "$backup" ] || [ -L "$backup" ]; then
+                warn "backup $backup already exists; leaving the original rule unchanged."
+            else
+                # Rename before masking; preserve the administrator's original bytes.
+                mkdir -p "$state_dir"
+                umask 077
+                printf 'etc\n' > "$state_file"
+                mv -- "$legacy" "$backup"
+                create_mask etc
+            fi
+        else
+            # Recover an interrupted configure after the original was moved.
+            if [ -f "$state_file" ] && [ "$(cat "$state_file")" = etc ] && original_rule "$backup"; then
+                create_mask etc
+            else
+                # A vendor copy may be present outside /etc. Mask it without
+                # modifying files that might belong to another Debian package.
+                found=0
+                custom=0
+                for candidate in \
+                    /run/udev/rules.d/97-omen_encoder.rules \
+                    /usr/local/lib/udev/rules.d/97-omen_encoder.rules \
+                    /usr/lib/udev/rules.d/97-omen_encoder.rules \
+                    /lib/udev/rules.d/97-omen_encoder.rules
+                do
+                    if [ -e "$candidate" ] || [ -L "$candidate" ]; then
+                        if original_rule "$candidate"; then
+                            found=1
+                        else
+                            warn "custom/modified rule at $candidate; not masking it."
+                            custom=1
+                        fi
+                    fi
+                done
+                if [ "$found" -eq 1 ] && [ "$custom" -eq 0 ]; then
+                    create_mask vendor
+                fi
+            fi
+        fi
+        # The debhelper-installed rules are already unpacked at configure time.
+        # Do not trigger/rebind an active keyboard automatically.
+        if command -v udevadm >/dev/null 2>&1; then
+            udevadm control --reload >/dev/null 2>&1 || :
+        fi
+        ;;
+esac
+
+#DEBHELPER#
+exit 0

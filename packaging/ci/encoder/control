@@ -1,0 +1,16 @@
+Source: encoder
+Section: utils
+Priority: optional
+Maintainer: Pitriss <5106460+Pitriss@users.noreply.github.com>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.7.0
+Rules-Requires-Root: no
+Homepage: https://github.com/Pitriss/kencoder
+Vcs-Browser: https://github.com/Pitriss/kencoder
+Vcs-Git: https://github.com/Pitriss/kencoder.git
+
+Package: encoder
+Architecture: linux-any
+Depends: ${shlibs:Depends}, ${misc:Depends}, udev
+Description: CLI control for HP OMEN Encoder lighting
+ Controls brightness, static lighting and animations through USB HID.

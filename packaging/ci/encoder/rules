@@ -1,0 +1,19 @@
+#!/usr/bin/make -f
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+DPKG_EXPORT_BUILDFLAGS = 1
+include /usr/share/dpkg/buildflags.mk
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	$(MAKE) CC="$(CC)" CFLAGS="$(CFLAGS) $(CPPFLAGS)" LDFLAGS="$(LDFLAGS)"
+
+override_dh_auto_install:
+	install -Dm755 build/cli/encoder debian/encoder/usr/bin/encoder
+
+override_dh_installudev:
+	dh_installudev --priority=99
+
+override_dh_auto_clean:
+	$(MAKE) clean

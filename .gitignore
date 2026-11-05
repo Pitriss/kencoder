@@ -1,4 +1,5 @@
 # Local builds and Debian packaging output
+# Keep the legacy upstream in-tree build artefacts ignored, if present.
 /encoder
 /*.o
 /build/

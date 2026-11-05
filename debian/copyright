@@ -2,11 +2,16 @@ Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: encoder_keyboard
 Source: https://github.com/player999/encoder_keyboard
 
-Files: Makefile encoder.c keyboard_control.c keyboard_control.h
+Files: cli/keyboard_control.h
 Copyright: 2020 Taras Zakharchenko
 License: BSD-3-clause
 
-Files: gui/* packaging/* debian/* .github/workflows/*
+Files: Makefile cli/Makefile cli/encoder.c cli/keyboard_control.c
+Copyright: 2020 Taras Zakharchenko
+           2026 Pitriss
+License: BSD-3-clause
+
+Files: gui/* packaging/* debian/* .github/workflows/* docs/* README.md README-kencoder.md
 Copyright: 2026 Pitriss
 License: BSD-3-clause
 

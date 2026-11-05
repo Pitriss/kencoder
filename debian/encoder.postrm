@@ -1,0 +1,43 @@
+#!/bin/sh
+# Only undo a mask that KEncoder created; restore the original on purge.
+set -e
+
+legacy=/etc/udev/rules.d/97-omen_encoder.rules
+backup=/etc/udev/rules.d/97-omen_encoder.rules.kencoder-disabled
+state_dir=/var/lib/encoder
+state_file=$state_dir/legacy-udev-migration
+
+original_rule() {
+    [ -f "$1" ] && [ ! -L "$1" ] &&
+        printf '%s\n' 'KERNEL=="hidraw*", ATTRS{idVendor}=="03f0", ATTRS{idProduct}=="3341", SUBSYSTEM=="hidraw", MODE="0666", GROUP="users"' | cmp -s - "$1"
+}
+
+case "$1" in
+    purge)
+        if [ -f "$state_file" ]; then
+            source_kind=$(cat "$state_file")
+            masked=0
+            if [ -L "$legacy" ] && [ "$(readlink "$legacy")" = /dev/null ]; then
+                rm -- "$legacy"
+                masked=1
+            elif [ ! -e "$legacy" ] && [ ! -L "$legacy" ]; then
+                # An interrupted configure may have moved the original first.
+                masked=1
+            fi
+            if [ "$masked" -eq 1 ] && [ "$source_kind" = etc ] && original_rule "$backup"; then
+                mv -- "$backup" "$legacy"
+                printf '%s\n' 'encoder: original 97-omen_encoder.rules restored on purge (legacy MODE=0666).' >&2
+            elif [ "$masked" -eq 0 ]; then
+                printf '%s\n' 'encoder: legacy udev rule changed since installation; left untouched.' >&2
+            fi
+            rm -f -- "$state_file"
+            rmdir "$state_dir" 2>/dev/null || :
+            if command -v udevadm >/dev/null 2>&1; then
+                udevadm control --reload >/dev/null 2>&1 || :
+            fi
+        fi
+        ;;
+esac
+
+#DEBHELPER#
+exit 0

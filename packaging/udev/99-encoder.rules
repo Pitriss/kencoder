@@ -1,0 +1,3 @@
+# HP OMEN Encoder: override the insecure upstream 97-omen_encoder.rules.
+# The early 70-encoder-uaccess.rules supplies uaccess before 73-seat-late.rules.
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="03f0", ATTRS{idProduct}=="3341", MODE="0660"
