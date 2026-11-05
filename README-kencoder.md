@@ -15,8 +15,10 @@ The tool does not support arbitrary keyboard models.
 
 Run `kencoder` from the Plasma menu or a terminal. GUI runs `encoder`
 with explicit argument vectors, without a shell or privilege elevation.
-The Debian package's udev rule uses `TAG+="uaccess"` and `MODE="0660"`,
-with priority 99 to override the insecure upstream priority-97 rule.
+The Debian package installs **two udev rules**: `70-encoder-uaccess.rules`
+adds the `uaccess` tag before systemd's `73-seat-late.rules` handles ACLs,
+while `99-encoder.rules` enforces `MODE="0660"` after the insecure upstream
+priority-97 rule. A tag set only in a 99- rule is too late for seat ACLs.
 After installing `encoder`, reconnect the keyboard (or log out and back in)
 to allow the device ACL to be refreshed. Run `udevadm info` and check
 `getfacl /dev/hidrawX` if permission problems persist. Never run the GUI as root.
@@ -64,3 +66,50 @@ first release. The build has not been tested on real hardware here.
 
 Original C code is BSD-3-Clause, as stated in the upstream source files.
 New GUI and packaging use BSD-3-Clause. See `LICENSE` and `debian/copyright`.
+
+## GUI controls
+
+- **Animace:** `Statické` is the default; other choices are Breathe, Left wave, Right wave and Ripple.
+- **Jas:** slider with the keyboard's actual hardware levels 0–3. The initial GUI value is **1**, not a verified hardware reading. GUI does not save or restore lighting settings. Startup readback from the USB HID device is **not implemented**, as the upstream protocol documents setting values and reading command acknowledgments, but no tested status query. The tray checkbox preference is still saved independently.
+- **Rychlost:** slider with the three firmware choices (Pomalá, Střední, Rychlá). It is disabled in static mode.
+- **Nastavit:** applies the selected brightness and lighting mode. **Vypnout:** switches the lighting off.
+- **Zavřít do systémového panelu:** when checked and the system tray is available, closing the window hides KEncoder instead of quitting. Click the icon to restore the window; right-click the icon and select **Ukončit** to exit. When unchecked, closing the window exits normally. This choice is saved per user with Qt's QSettings.
+- The program icon is embedded in the GUI executable and installed as `kencoder.png` for the desktop launcher and system tray.
+
+A headless widget smoke test (no keyboard required) is available after building:
+
+```sh
+QT_QPA_PLATFORM=offscreen ./build/gui/kencoder --self-test
+```
+
+## Kontrola stavu v GUI
+
+KEncoder zobrazuje pod nadpisem **Stav** indikátor stavu pod
+ovládacími tlačítky. Stav se obnovuje každých 5 sekund a také po dokončení
+příkazu. Textové pole pouze pro čtení s názvem klávesnice a nalezenou
+cestou `/dev/hidraw*` je zapuštěné úplně dole, bez vnějších okrajů na bocích
+a u spodní hrany okna. Ostatní ovládací prvky zachovávají běžné odsazení KDE.
+Po příkazu se na 5 sekund zobrazí úspěšná zpráva,
+chybová zpráva na 8 sekund; pak se vrátí název a cesta zařízení. Během této
+doby průběžná diagnostika zprávu nepřepisuje. Úspěšná zpráva vychází z
+návratového kódu CLI a jeho hlášení, není nezávislým ověřením aktuálního
+nastavení podsvícení.
+
+- **Zelená**: `encoder` je v PATH, připojené zařízení odpovídá vendor HID
+  rozhraní HP OMEN Encoder, jsou nainstalována bezpečná pravidla
+  `70-encoder-uaccess.rules` a `99-encoder.rules`, má aktivní značku `uaccess`
+  a lze ho otevřít s právy
+  pro čtení i zápis.
+- **Oranžová**: některé z uvedených udev pravidel chybí, nebo není aplikováno
+  (například je nutné klávesnici znovu připojit).
+- **Červená**: chybí `encoder`, klávesnice není připojena, zařízení není
+  přístupné nebo selhal poslední příkaz.
+
+Kontrola pouze čte `/sys`, pravidlo udev, stav udev a testuje otevření
+`/dev/hidraw*`. Neodesílá HID příkazy a nevyčítá skutečný jas nebo animaci.
+Hodnota jasu v GUI je vždy předvolená `1`; nastavení podsvícení se neukládá.
+
+Kliknutí na ikonu v systémovém panelu střídavě schová a zobrazí okno.
+Pravé tlačítko otevře nabídku s položkou **Ukončit**.
+Balíček `kencoder` již má povinnou závislost na `encoder` stejné verze;
+při ručním spuštění GUI se absence CLI přesto oznamuje červeně.

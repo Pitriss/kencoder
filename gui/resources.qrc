@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file alias="kencoder.png">../packaging/kencoder.png</file>
+    </qresource>
+</RCC>
