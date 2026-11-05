@@ -2,7 +2,7 @@ Source: kencoder
 Section: utils
 Priority: optional
 Maintainer: Pitriss <5106460+Pitriss@users.noreply.github.com>
-Build-Depends: debhelper-compat (= 13), cmake, qt6-base-dev
+Build-Depends: debhelper-compat (= 13), cmake, qt6-base-dev, qt6-declarative-dev, extra-cmake-modules, libkf6kcmutils-dev
 Standards-Version: 4.7.0
 Rules-Requires-Root: no
 Homepage: https://github.com/Pitriss/kencoder
@@ -19,6 +19,7 @@ Description: Command-line control for HP OMEN Encoder lighting
 Package: kencoder
 Architecture: linux-any
 Depends: encoder (>= 0.1.0), ${shlibs:Depends}, ${misc:Depends}, qt6-qpa-plugins
+Suggests: libkf6kcmutils6, qml6-module-org-kde-kcmutils, qml6-module-org-kde-kirigami
 Description: Qt 6 GUI for HP OMEN Encoder lighting
  Graphical KDE Plasma 6-friendly frontend for the encoder command-line
  utility, with brightness and lighting animation controls.

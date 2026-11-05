@@ -1,0 +1,14 @@
+{
+    "KPlugin": {
+        "Name": "HP OMEN Encoder",
+        "Name[cs]": "HP OMEN Encoder",
+        "Description": "Configure HP OMEN Encoder keyboard lighting",
+        "Description[cs]": "Nastavení podsvícení klávesnice HP OMEN Encoder",
+        "Icon": "preferences-desktop-keyboard",
+        "FormFactors": ["desktop"]
+    },
+    "X-KDE-System-Settings-Parent-Category": "keyboard",
+    "X-KDE-Weight": 30,
+    "X-KDE-Keywords": "HP,OMEN,Encoder,keyboard,lighting,brightness",
+    "X-KDE-Keywords[cs]": "HP,OMEN,Encoder,klávesnice,podsvícení,jas"
+}

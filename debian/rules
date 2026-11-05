@@ -8,7 +8,7 @@ include /usr/share/dpkg/buildflags.mk
 
 override_dh_auto_build:
 	$(MAKE) CC="$(CC)" CFLAGS="$(CFLAGS) $(CPPFLAGS)" LDFLAGS="$(LDFLAGS)"
-	cmake -S gui -B build/gui -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo
+	cmake -S gui -B build/gui -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo -DKENCODER_REQUIRE_KCM=ON
 	cmake --build build/gui --parallel
 
 override_dh_auto_install:
@@ -19,6 +19,11 @@ override_dh_auto_install:
 # This keeps the device from remaining world-writable.
 override_dh_installudev:
 	dh_installudev --priority=99
+
+# The bundled KCM uses KF6 only inside its plugin. Do not pull its runtime
+# dependencies into the ordinary Qt Widgets application package.
+override_dh_shlibdeps:
+	dh_shlibdeps -Xkcm_kencoder.so
 
 override_dh_auto_clean:
 	$(MAKE) clean

@@ -7,13 +7,18 @@ include /usr/share/dpkg/buildflags.mk
 	dh $@
 
 override_dh_auto_configure:
-	cmake -S gui -B build/gui -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo
+	cmake -S gui -B build/gui -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo -DKENCODER_REQUIRE_KCM=ON
 
 override_dh_auto_build:
 	cmake --build build/gui --parallel
 
 override_dh_auto_install:
 	DESTDIR="$(CURDIR)/debian/kencoder" cmake --install build/gui --prefix /usr
+
+# The bundled KCM uses KF6 only inside its plugin. Do not pull its runtime
+# dependencies into the ordinary Qt Widgets application package.
+override_dh_shlibdeps:
+	dh_shlibdeps -Xkcm_kencoder.so
 
 override_dh_auto_clean:
 	rm -rf build/gui

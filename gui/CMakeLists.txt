@@ -16,3 +16,28 @@ install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../packaging/kencoder.desktop"
 
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../packaging/kencoder.png"
         DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor/256x256/apps")
+
+# Build KCM only when the KDE development stack is available. A standalone
+# non-Plasma build still produces the unmodified Qt Widgets application.
+option(KENCODER_BUILD_KCM "Build optional Plasma 6 Settings module" ON)
+option(KENCODER_REQUIRE_KCM "Fail if the optional KCM cannot be built" OFF)
+if(KENCODER_BUILD_KCM)
+    find_package(ECM 6.0 QUIET NO_MODULE)
+    if(ECM_FOUND)
+        list(PREPEND CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
+        find_package(Qt6 6.4 QUIET COMPONENTS Quick Qml)
+        find_package(KF6 6.0 QUIET COMPONENTS CoreAddons KCMUtils)
+    endif()
+    if(TARGET Qt6::Quick AND TARGET KF6::CoreAddons AND
+       TARGET KF6::KCMUtils AND TARGET KF6::KCMUtilsQuick)
+        include(KDEInstallDirs)
+        add_subdirectory(kcm)
+        message(STATUS "KEncoder: optional Plasma KCM enabled")
+    elseif(KENCODER_REQUIRE_KCM)
+        message(FATAL_ERROR "KEncoder: KCM requested but ECM, Qt Quick or KF6 KCMUtils are missing")
+    else()
+        message(STATUS "KEncoder: Plasma KCM skipped (optional build dependencies missing)")
+    endif()
+elseif(KENCODER_REQUIRE_KCM)
+    message(FATAL_ERROR "KEncoder: KENCODER_BUILD_KCM=OFF conflicts with KENCODER_REQUIRE_KCM=ON")
+endif()
