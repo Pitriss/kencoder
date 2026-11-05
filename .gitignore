@@ -1,0 +1,14 @@
+# Local builds and Debian packaging output
+/encoder
+/*.o
+/build/
+/dist/
+/debian/.debhelper/
+/debian/debhelper-build-stamp
+/debian/files
+/debian/encoder/
+/debian/kencoder/
+/debian/*.substvars
+/debian/*.debhelper.log
+/.log/
+/.tmp/

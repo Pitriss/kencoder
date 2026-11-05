@@ -1,0 +1,24 @@
+Source: kencoder
+Section: utils
+Priority: optional
+Maintainer: Pitriss <5106460+Pitriss@users.noreply.github.com>
+Build-Depends: debhelper-compat (= 13), cmake, qt6-base-dev
+Standards-Version: 4.7.0
+Rules-Requires-Root: no
+Homepage: https://github.com/Pitriss/kencoder
+Vcs-Browser: https://github.com/Pitriss/kencoder
+Vcs-Git: https://github.com/Pitriss/kencoder.git
+
+Package: encoder
+Architecture: linux-any
+Depends: ${shlibs:Depends}, ${misc:Depends}, udev
+Description: Command-line control for HP OMEN Encoder lighting
+ CLI tool to configure brightness, static lighting and animations
+ of HP OMEN Encoder (USB 03f0:3341) keyboards.
+
+Package: kencoder
+Architecture: linux-any
+Depends: encoder (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends}, qt6-qpa-plugins
+Description: Qt 6 GUI for HP OMEN Encoder lighting
+ Graphical KDE Plasma 6-friendly frontend for the encoder command-line
+ utility, with brightness and lighting animation controls.

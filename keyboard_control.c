@@ -45,45 +45,30 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 int get_keyboard()
 {
-    int fd;
-    int dev_idx = 0;
-    while(1)
+    /* Hidraw indices can have gaps; never stop at the first missing index. */
+    for (int dev_idx = 0; dev_idx < 256; dev_idx++)
     {
-        static char fname[DESCRIPTOR_SIZE];
-        int descriptor_size;
+        char fname[64];
         struct hidraw_devinfo devinfo;
-        struct stat stat_buf;
-        int err;
+        int descriptor_size;
 
         snprintf(fname, sizeof(fname), "/dev/hidraw%d", dev_idx);
-        err = stat(fname, &stat_buf);
-        if(ENOENT == stat(fname, &stat_buf))
+        int fd = open(fname, O_RDWR);
+        if (fd < 0)
+            continue;
+
+        if (ioctl(fd, HIDIOCGRAWINFO, &devinfo) >= 0 &&
+            devinfo.vendor == OMEN_ENCODER_VID &&
+            devinfo.product == OMEN_ENCODER_PID &&
+            ioctl(fd, HIDIOCGRDESCSIZE, &descriptor_size) >= 0 &&
+            descriptor_size == DESCRIPTOR_SIZE)
         {
-            return -1;
+            return fd;
         }
 
-        fd = open(fname, O_RDWR);
-        if(-1 != fd)
-        {
-            if(-1 != ioctl(fd, HIDIOCGRAWINFO, &devinfo))
-            {
-                if((OMEN_ENCODER_VID == devinfo.vendor) && (OMEN_ENCODER_PID == devinfo.product))
-                {
-                    if(-1 != ioctl(fd, HIDIOCGRDESCSIZE, &descriptor_size))
-                    {
-                        if(DESCRIPTOR_SIZE == descriptor_size)
-                        {
-                            break;
-                        }
-
-                    }
-                }
-            }
-        }
         close(fd);
-        dev_idx++;
     }
-    return fd;
+    return -1;
 }
 
 void send_data(int fd, char buffer[])

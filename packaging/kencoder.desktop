@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=KEncoder
+GenericName=HP OMEN Encoder keyboard lighting
+GenericName[cs]=Ovládání podsvícení klávesnice HP OMEN Encoder
+Comment=Control HP OMEN Encoder lighting using Qt 6
+Comment[cs]=Ovládání podsvícení HP OMEN Encoder pomocí Qt 6
+Exec=kencoder
+Icon=input-keyboard
+Categories=Settings;HardwareSettings;
+Terminal=false
+StartupNotify=true

@@ -38,7 +38,7 @@ const char help_text[] =
 "-s static lightning\n"
 "-o turn off lightning\n"
 "-h show this help\n"
-"-b <0|1|2> brightness\n"
+"-b <0|1|2|3> brightness\n"
 "-v <slow|medium|fast> animation speed\n"
 "-a <ripple|left_wave|right_wave|breathe> animation mode\n"
 ;
@@ -46,8 +46,6 @@ const char help_text[] =
 int main(int argc, char *argv[])
 {
     int fd;
-    int dev_idx = 0;
-    char buffer[64];
     int option;
     ANIMATION_SPEED speed = ANIMATION_SPEED_FAST;
     BRIGHTNESS_LVL brightness = BRIGHTNESS_LVL_3;
@@ -55,18 +53,10 @@ int main(int argc, char *argv[])
     int ani_set = 0;
     int off_set = 0;
     int sta_set = 0;
-    int spd_set = 0;
     int need_help = 0;
 
-    fd = get_keyboard();
-    if(-1 == fd)
-    {
-        printf("Did not find OMEN Encoder keyboard\n");
-        exit(-1);
-    }
-
     speed = ANIMATION_SPEED_SLOW;
-    while((option = getopt(argc, argv, ":sohm:b:v:a:")) != -1)
+    while((option = getopt(argc, argv, ":sohb:v:a:")) != -1)
     {
         switch(option){
             case 's':
@@ -85,9 +75,9 @@ int main(int argc, char *argv[])
                 else if(strcmp(optarg, "3") == 0)   brightness = BRIGHTNESS_LVL_3;
                 break;
             case 'v':
-                if(strcmp(optarg, "slow") == 0)         { speed = ANIMATION_SPEED_SLOW; spd_set = 1; }
-                else if(strcmp(optarg, "medium") == 0)  { speed = ANIMATION_SPEED_MEDIUM; spd_set = 1; }
-                else if(strcmp(optarg, "fast") == 0)    { speed = ANIMATION_SPEED_FAST; spd_set = 1; }
+                if(strcmp(optarg, "slow") == 0)         { speed = ANIMATION_SPEED_SLOW; }
+                else if(strcmp(optarg, "medium") == 0)  { speed = ANIMATION_SPEED_MEDIUM; }
+                else if(strcmp(optarg, "fast") == 0)    { speed = ANIMATION_SPEED_FAST; }
                 break;
             case 'a':
                 if(strcmp(optarg, "ripple") == 0)           { animode = ANIMATION_MODE_RIPPLE; ani_set = 1; }
@@ -104,12 +94,21 @@ int main(int argc, char *argv[])
         }
     }
 
-    set_brightness(fd, brightness);
     if(need_help)
     {
-        printf(help_text);
+        printf("%s", help_text);
+        return 0;
     }
-    else if(off_set)
+
+    fd = get_keyboard();
+    if(fd < 0)
+    {
+        fprintf(stderr, "OMEN Encoder keyboard not found or access denied\n");
+        return 1;
+    }
+
+    set_brightness(fd, brightness);
+    if(off_set)
     {
         set_lights_off(fd);
     }

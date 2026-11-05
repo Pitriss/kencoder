@@ -26,6 +26,7 @@
 INCLUDE_DIRS=
 LIBS=
 PROGRAM=encoder
+PREFIX?=/usr
 
 CFLAGS=$(INCLUDE_DIRS)
 LDFLAGS=$(LIBS)
@@ -34,10 +35,10 @@ LDFLAGS=$(LIBS)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 $(PROGRAM): encoder.o keyboard_control.o
-	gcc -o $@ $(LDFLAGS) $^
+	$(CC) -o $@ $^ $(LDFLAGS)
 
 install: $(PROGRAM)
-	install $(PROGRAM) /usr/bin/$(PROGRAM)
+	install -Dm755 $(PROGRAM) $(DESTDIR)$(PREFIX)/bin/$(PROGRAM)
 
 clean:
 	rm -f *.o

@@ -1,0 +1,6 @@
+kencoder (0.1.0) unstable; urgency=medium
+
+  * Initial Qt 6 frontend and Debian 13 split packages.
+  * Fix HID device enumeration and ship restrictive udev ACL rules.
+
+ -- Pitriss <5106460+Pitriss@users.noreply.github.com>  Thu, 05 Nov 2026 09:00:00 +0100

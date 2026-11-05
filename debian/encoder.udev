@@ -1,0 +1,2 @@
+# HP OMEN Encoder keyboard: active local seat access, not world-writable.
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="03f0", ATTRS{idProduct}=="3341", MODE="0660", TAG+="uaccess"
