@@ -47,6 +47,7 @@ if [[ "$component" == encoder ]]; then
   cp "$root/packaging/ci/encoder/rules" "$stage/debian/rules"
 else
   cp -a "$root/gui" "$stage/gui"
+  cp -a "$root/notify" "$stage/notify"
   mkdir -p "$stage/packaging"
   cp "$root/packaging/kencoder.desktop" "$root/packaging/kencoder.png" "$stage/packaging/"
   min_encoder=$(tr -d '[:space:]' < "$root/packaging/ci/encoder-min-version")

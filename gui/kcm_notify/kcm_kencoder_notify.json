@@ -1,0 +1,14 @@
+{
+    "KPlugin": {
+        "Name": "KEncoder Notify",
+        "Name[cs]": "KEncoder Notify",
+        "Description": "Notification-triggered HP OMEN Encoder lighting sequences",
+        "Description[cs]": "Světelné sekvence vyvolávané oznámeními",
+        "Icon": "preferences-desktop-notification",
+        "FormFactors": ["desktop"]
+    },
+    "X-KDE-System-Settings-Parent-Category": "notifications",
+    "X-KDE-Weight": 70,
+    "X-KDE-Keywords": "KEncoder,notify,notifications,keyboard,lighting",
+    "X-KDE-Keywords[cs]": "KEncoder,oznámení,notifikace,klávesnice,podsvícení"
+}

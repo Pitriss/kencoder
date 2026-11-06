@@ -18,7 +18,7 @@ override_dh_auto_install:
 # The bundled KCM uses KF6 only inside its plugin. Do not pull its runtime
 # dependencies into the ordinary Qt Widgets application package.
 override_dh_shlibdeps:
-	dh_shlibdeps -Xkcm_kencoder.so
+	dh_shlibdeps -Xkcm_kencoder.so -Xkcm_kencoder_notify.so
 
 override_dh_auto_clean:
 	rm -rf build/gui
