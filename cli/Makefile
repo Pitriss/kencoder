@@ -29,7 +29,7 @@ ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
 SRC := $(ROOT)/cli
 BUILD := $(ROOT)/build/cli
 TARGET := $(BUILD)/encoder
-OBJECTS := $(BUILD)/encoder.o $(BUILD)/keyboard_control.o
+OBJECTS := $(BUILD)/encoder.o $(BUILD)/keyboard_control.o $(BUILD)/keyboard_readback.o
 PREFIX ?= /usr
 CFLAGS ?= -O2
 
@@ -40,7 +40,7 @@ all: $(TARGET)
 $(BUILD):
 	mkdir -p "$(BUILD)"
 
-$(BUILD)/%.o: $(SRC)/%.c $(SRC)/keyboard_control.h | $(BUILD)
+$(BUILD)/%.o: $(SRC)/%.c $(SRC)/keyboard_control.h $(SRC)/keyboard_readback.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o "$@" "$<"
 
 $(TARGET): $(OBJECTS)

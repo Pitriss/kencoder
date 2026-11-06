@@ -9,7 +9,29 @@ import org.kde.kcmutils as KCM
 KCM.SimpleKCM {
     id: root
     implicitWidth: Kirigami.Units.gridUnit * 34
-    implicitHeight: Kirigami.Units.gridUnit * 28
+    implicitHeight: Kirigami.Units.gridUnit * 31
+    property bool draftModified: false
+
+    function syncFromHardware() {
+        if (draftModified || !kcm.reportedAvailable)
+            return
+        brightness.value = kcm.reportedBrightness
+        if (kcm.reportedMode === "off")
+            return // Off is hardware state, not a selectable animation.
+        for (let i = 0; i < animation.count; ++i) {
+            if (animation.model[i].value === kcm.reportedMode) {
+                animation.currentIndex = i
+                break
+            }
+        }
+        // Speed cannot be read. Never claim that the slider is hardware state.
+    }
+
+    Connections {
+        target: kcm
+        function onLightingStatusChanged() { root.syncFromHardware() }
+    }
+    Component.onCompleted: syncFromHardware()
 
     ColumnLayout {
         anchors.fill: parent
@@ -30,12 +52,14 @@ KCM.SimpleKCM {
                 Layout.fillWidth: true
                 textRole: "label"
                 valueRole: "value"
+                onActivated: root.draftModified = true
                 model: [
                     { label: "Statické", value: "static" },
                     { label: "Dýchání", value: "breathe" },
                     { label: "Vlna zleva", value: "left_wave" },
                     { label: "Vlna zprava", value: "right_wave" },
-                    { label: "Reakce na stisk", value: "ripple" }
+                    { label: "Reakce na stisk", value: "ripple" },
+                    { label: "Vlna (směr nezjištěn)", value: "wave" }
                 ]
             }
 
@@ -50,7 +74,8 @@ KCM.SimpleKCM {
                     to: 3
                     stepSize: 1
                     snapMode: Controls.Slider.SnapAlways
-                    value: 1 // UI default, NOT a readback from the keyboard.
+                    value: 1 // Editor default until a hardware read succeeds.
+                    onMoved: root.draftModified = true
                 }
                 Controls.Label {
                     text: brightness.value.toFixed(0)
@@ -66,6 +91,7 @@ KCM.SimpleKCM {
                 textRole: "label"
                 valueRole: "value"
                 currentIndex: 1
+                onActivated: root.draftModified = true
                 model: [
                     { label: "Pomalá", value: "slow" },
                     { label: "Střední", value: "medium" },
@@ -79,16 +105,32 @@ KCM.SimpleKCM {
             Controls.Button {
                 text: "Nastavit"
                 enabled: !kcm.busy
-                onClicked: kcm.applyLighting(animation.currentValue,
-                                              Math.round(brightness.value), speed.currentValue)
+                onClicked: {
+                    root.draftModified = false
+                    kcm.applyLighting(animation.currentValue,
+                                      Math.round(brightness.value), speed.currentValue)
+                }
             }
             Controls.Button {
                 text: "Vypnout"
                 enabled: !kcm.busy
-                onClicked: kcm.turnOff()
+                onClicked: {
+                    root.draftModified = false
+                    kcm.turnOff()
+                }
             }
         }
 
+        Controls.Button {
+            text: "Načíst stav"
+            enabled: !kcm.busy
+            onClicked: kcm.refreshLightingStatus()
+        }
+        Controls.Label {
+            Layout.fillWidth: true
+            text: kcm.lightingStatus
+            wrapMode: Text.WordWrap
+        }
         Controls.Label {
             Layout.fillWidth: true
             text: "Stav:"

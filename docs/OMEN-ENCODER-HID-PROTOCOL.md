@@ -284,7 +284,7 @@ These are **event identifiers**, not bytes at known positions in the `80 01` rep
 
 - The results come from one confirmed HP OMEN Encoder and one software build. Other firmware revisions may behave differently.
 - A readback parser must first verify VID/PID, USB interface and descriptor; it must not bind to arbitrary `/dev/hidraw*` nodes.
-- Reading configuration must send **only** the validated `80 01` query, not a preceding brightness write. The current CLI's normal execution path always writes brightness and must be bypassed for a future `--status`.
+- Reading configuration must send **only** the validated `80 01` query, not a preceding brightness write. The legacy CLI's normal execution path always writes brightness; `--status` uses an early, independent read-only branch.
 - Do not infer success solely from `write()` returning the requested byte count, matching the first two reply bytes, or CLI exit code 0.
 - Validate packet length and response identity, handle timeouts and partial reads, and reject malformed replies rather than returning guessed defaults.
 - Do not decode speed or wave direction from the current reply; both are **unknown**. Device-reported brightness during Off should be labeled as a reported field, not visible luminosity.
@@ -292,16 +292,16 @@ These are **event identifiers**, not bytes at known positions in the `80 01` rep
 - Preserve the existing udev ACL design; avoid root when normal user permissions work.
 - Do not record ordinary keypresses or data from the keyboard's typing interfaces.
 
-## 9. Planned KEncoder integration (not implemented in production)
+## 9. KEncoder readback CLI and remaining integration work
 
 **Implementation order agreed for the project:**
 
 1. Stabilize the **optional Plasma 6 KCM draft** on branch `kcm-develop`. Keep it inside the existing `kencoder` package, with **no mandatory KF6 runtime dependency for the standalone Qt GUI**. Do not write device settings when opening the module.
 2. Publish this protocol analysis under `docs/`.
-3. Implement a **read-only** `encoder --status` (possibly `--json`) with verified identity checks, a bounded `80 01` request, a validated parser, and explicit partial/unknown fields. Do this in a separate reviewed patch with tests.
-4. Integrate the hardware-reported fields into both the existing Qt Widgets GUI and the KCM. Never mix cached, requested, or default values with actual hardware values.
+3. The `encoder --status [--json]` implementation is introduced by the separate readback patch; it remains subject to real-device verification before release. It validates USB VID/PID and the exact 30-byte lighting descriptor, sends only `00 80 01 ...` (65 bytes), bounds the read to 2 seconds/8 replies, and rejects unsupported format selectors.
+4. Integrate the hardware-reported fields into both the existing Qt Widgets GUI and the KCM. Never mix cached, requested, or default values with actual hardware values. This integration is not yet implemented.
 
-Possible machine-readable result for Wave with brightness 2:
+Example machine-readable result for Wave with brightness 2:
 
 ```json
 {
@@ -311,11 +311,12 @@ Possible machine-readable result for Wave with brightness 2:
   "mode": "wave",
   "direction": null,
   "speed": null,
-  "partial": true
+  "partial": true,
+  "effect_code": 10
 }
 ```
 
-This is a **proposed** API, not current CLI output. Wave direction and speed remain unavailable. Off must be represented as a distinct mode, while static brightness 0 is **not** Off. Invalid or unsupported reply formats should produce an explicit error/unknown state, never a fabricated static configuration. Startup readback must never apply settings or write flash.
+This is the JSON schema implemented by the accompanying readback CLI patch. The CLI patch is not yet validated against physical hardware. Wave direction and speed remain unavailable. Off must be represented as a distinct mode, while static brightness 0 is **not** Off. Invalid or unsupported reply formats should produce an explicit error/unknown state, never a fabricated static configuration. Startup readback must never apply settings or write flash.
 
 ### Evidence locations
 

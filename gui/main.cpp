@@ -34,6 +34,8 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
+#include "lighting_status.h"
+
 class KEncoderWindow final : public QWidget
 {
 public:
@@ -64,6 +66,8 @@ public:
         animation_->addItem(QStringLiteral("Vlna zleva"), QStringLiteral("left_wave"));
         animation_->addItem(QStringLiteral("Vlna zprava"), QStringLiteral("right_wave"));
         animation_->addItem(QStringLiteral("Reakce na stisk"), QStringLiteral("ripple"));
+        // A readback of Wave cannot distinguish left from right.
+        animation_->addItem(QStringLiteral("Vlna (směr nezjištěn)"), QStringLiteral("wave"));
         form->addRow(QStringLiteral("Animace:"), animation_);
 
         auto *brightnessRow = new QWidget(controls);
@@ -143,6 +147,11 @@ public:
         healthRow->addLayout(ledColumn);
         healthRow->addWidget(healthText_, 1);
         layout->addLayout(healthRow);
+        hardwareState_ = new QLabel(QStringLiteral("Podsvícení: stav neznámý."), content);
+        hardwareState_->setObjectName(QStringLiteral("lightingReadbackStatus"));
+        hardwareState_->setWordWrap(true);
+        hardwareState_->setTextInteractionFlags(Qt::TextSelectableByMouse);
+        layout->addWidget(hardwareState_);
 
         // Keep all the free space inside the content area, above the status field.
         layout->addStretch(1);
@@ -175,11 +184,20 @@ public:
         });
 
         connect(animation_, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                this, [this] { updateSpeedEnabled(); });
+                this, [this] {
+            updateSpeedEnabled();
+            if (!syncingState_) editorTouched_ = true;
+        });
         connect(brightness_, &QSlider::valueChanged, brightnessValue_,
                 [this](int level) { brightnessValue_->setText(QString::number(level)); });
+        connect(brightness_, &QSlider::valueChanged, this, [this] {
+            if (!syncingState_) editorTouched_ = true;
+        });
         connect(speed_, &QSlider::valueChanged, speedValue_,
                 [this](int level) { speedValue_->setText(speedLabel(level)); });
+        connect(speed_, &QSlider::valueChanged, this, [this] {
+            if (!syncingState_) editorTouched_ = true;
+        });
         connect(closeToTray_, &QCheckBox::toggled, this, [this](bool checked) {
             QSettings().setValue(QStringLiteral("ui/closeToTray"), checked);
             updateTrayIcon();
@@ -191,6 +209,10 @@ public:
         updateTrayIcon();
 
         connect(applyButton, &QPushButton::clicked, this, [this] {
+            if (animation_->currentData().toString() == QLatin1String("wave")) {
+                showStatus(QStringLiteral("Před nastavením vlny zvolte její směr."), 7000);
+                return;
+            }
             QStringList arguments{QStringLiteral("-b"), QString::number(brightness_->value())};
             if (animation_->currentData().toString() == QLatin1String("static")) {
                 arguments << QStringLiteral("-s");
@@ -224,6 +246,7 @@ public:
         connect(&process_, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                 this, [this](int exitCode, QProcess::ExitStatus exitStatus) {
             timeout_.stop();
+            bool writeSucceeded = false;
             if (timedOut_) {
                 lastCommandError_ = QStringLiteral("Klávesnice neodpověděla do 8 sekund. "
                                                    "Proces byl ukončen.");
@@ -232,8 +255,9 @@ public:
                 const QString stderrText = QString::fromUtf8(process_.readAllStandardError()).trimmed();
                 if (exitStatus == QProcess::NormalExit && exitCode == 0 &&
                     !stdoutText.contains(QStringLiteral("Command failed"))) {
+                    writeSucceeded = true;
                     lastCommandError_.clear();
-                    showStatus(QStringLiteral("Potvrzeno: %1").arg(successMessage_), 5000);
+                    showStatus(QStringLiteral("Odesláno: %1. Ověřuji stav…").arg(successMessage_), 5000);
                 } else {
                     const QString detail = !stderrText.isEmpty() ? stderrText : stdoutText;
                     lastCommandError_ = QStringLiteral("Příkaz selhal (kód %1). %2")
@@ -244,11 +268,53 @@ public:
                 showStatus(lastCommandError_, 8000);
             refreshHealth();
             setBusy(false);
+            if (writeSucceeded)
+                QTimer::singleShot(0, this, [this] { refreshLightingState(); });
+        });
+
+        readTimeout_.setSingleShot(true);
+        connect(&readTimeout_, &QTimer::timeout, this, [this] {
+            readTimedOut_ = true;
+            readProcess_.kill();
+        });
+        connect(&readProcess_, &QProcess::errorOccurred, this, [this](QProcess::ProcessError error) {
+            if (error != QProcess::FailedToStart)
+                return; // Other errors are handled by finished().
+            readTimeout_.stop();
+            hardwareState_->setText(QStringLiteral("Podsvícení: příkaz encoder nelze spustit."));
+            setBusy(false);
+        });
+        connect(&readProcess_, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                this, [this](int exitCode, QProcess::ExitStatus exitStatus) {
+            readTimeout_.stop();
+            EncoderLightingStatus state;
+            if (!readTimedOut_ && exitStatus == QProcess::NormalExit && exitCode == 0 &&
+                parseEncoderLightingStatus(readProcess_.readAllStandardOutput(), &state)) {
+                hardwareState_->setText(state.description());
+                if (!editorTouched_) {
+                    syncingState_ = true;
+                    brightness_->setValue(state.brightness);
+                    // Off is not an animation choice. Wave has unknown direction.
+                    if (state.mode != QLatin1String("off")) {
+                        const int index = animation_->findData(state.mode);
+                        if (index >= 0)
+                            animation_->setCurrentIndex(index);
+                    }
+                    syncingState_ = false;
+                }
+            } else {
+                hardwareState_->setText(readTimedOut_
+                    ? QStringLiteral("Podsvícení: čtení překročilo časový limit.")
+                    : QStringLiteral("Podsvícení: stav nelze načíst (encoder --status --json)."));
+            }
+            setBusy(false);
         });
 
         const bool selfTesting = QCoreApplication::arguments().contains(QStringLiteral("--self-test"));
         if (!selfTesting) {
             refreshHealth();
+            // Never send a setter while opening the GUI. This query is read-only.
+            QTimer::singleShot(0, this, [this] { refreshLightingState(); });
             healthPoll_.setInterval(5000);
             connect(&healthPoll_, &QTimer::timeout, this, [this] { refreshHealth(); });
             healthPoll_.start();
@@ -397,6 +463,23 @@ private:
         case 2: return QStringLiteral("fast");
         default: return QStringLiteral("medium");
         }
+    }
+
+    void refreshLightingState()
+    {
+        if (process_.state() != QProcess::NotRunning ||
+            readProcess_.state() != QProcess::NotRunning)
+            return;
+        const QString cli = QStandardPaths::findExecutable(QStringLiteral("encoder"));
+        if (cli.isEmpty()) {
+            hardwareState_->setText(QStringLiteral("Podsvícení: příkaz encoder není dostupný."));
+            return;
+        }
+        readTimedOut_ = false;
+        hardwareState_->setText(QStringLiteral("Zjišťuji skutečný stav klávesnice…"));
+        setBusy(true);
+        readProcess_.start(cli, {QStringLiteral("--status"), QStringLiteral("--json")});
+        readTimeout_.start(4000);
     }
 
     void updateSpeedEnabled()
@@ -615,7 +698,8 @@ private:
 
     void run(const QStringList &arguments, const QString &successMessage)
     {
-        if (process_.state() != QProcess::NotRunning)
+        if (process_.state() != QProcess::NotRunning ||
+            readProcess_.state() != QProcess::NotRunning)
             return;
         if (QStandardPaths::findExecutable(QStringLiteral("encoder")).isEmpty()) {
             lastCommandError_ = QStringLiteral("Chybí CLI encoder. Nainstalujte balíček encoder.");
@@ -625,6 +709,7 @@ private:
         }
         // Clear a previous command failure only on a successful command, not on retry.
         successMessage_ = successMessage;
+        editorTouched_ = false; // Resync only if the user does not edit during the write.
         timedOut_ = false;
         showStatus(QStringLiteral("Odesílám nastavení do klávesnice…"), 10000);
         setBusy(true);
@@ -644,14 +729,20 @@ private:
     QLabel *healthTitle_ = nullptr;
     QLabel *healthLed_ = nullptr;
     QLabel *healthText_ = nullptr;
+    QLabel *hardwareState_ = nullptr;
     QLineEdit *statusField_ = nullptr;
     QString deviceText_;
     QTimer statusReset_;
     QList<QPushButton *> buttons_;
     QProcess process_;
+    QProcess readProcess_;
     QTimer timeout_;
+    QTimer readTimeout_;
     QTimer healthPoll_;
     bool timedOut_ = false;
+    bool readTimedOut_ = false;
+    bool editorTouched_ = false;
+    bool syncingState_ = false;
     QString successMessage_;
     QString lastCommandError_;
 };

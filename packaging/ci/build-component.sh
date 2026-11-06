@@ -34,7 +34,8 @@ printf '3.0 (native)\n' > "$stage/debian/source/format"
 if [[ "$component" == encoder ]]; then
   mkdir -p "$stage/cli" "$stage/packaging/udev" "$stage/docs/man/man1"
   cp "$root/cli/encoder.c" "$root/cli/keyboard_control.c" \
-     "$root/cli/keyboard_control.h" "$root/cli/Makefile" "$stage/cli/"
+     "$root/cli/keyboard_control.h" "$root/cli/keyboard_readback.c" \
+     "$root/cli/keyboard_readback.h" "$root/cli/Makefile" "$stage/cli/"
   cp "$root/Makefile" "$stage/"
   cp "$root/packaging/udev/70-encoder-uaccess.rules" \
      "$root/packaging/udev/99-encoder.rules" "$stage/packaging/udev/"

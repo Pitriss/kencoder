@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright 2026 Pitriss
+#include "../lighting_status.h"
 #include <KQuickConfigModule>
 #include <QProcess>
 #include <QString>
@@ -14,30 +15,46 @@ class KEncoderKcm final : public KQuickConfigModule
     Q_OBJECT
     Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
     Q_PROPERTY(QString feedback READ feedback NOTIFY feedbackChanged)
+    Q_PROPERTY(QString lightingStatus READ lightingStatus NOTIFY lightingStatusChanged)
+    Q_PROPERTY(bool reportedAvailable READ reportedAvailable NOTIFY lightingStatusChanged)
+    Q_PROPERTY(int reportedBrightness READ reportedBrightness NOTIFY lightingStatusChanged)
+    Q_PROPERTY(QString reportedMode READ reportedMode NOTIFY lightingStatusChanged)
 
 public:
     KEncoderKcm(QObject *parent, const KPluginMetaData &metaData);
 
     bool busy() const { return busy_; }
     QString feedback() const { return feedback_; }
+    QString lightingStatus() const { return lightingStatus_; }
+    bool reportedAvailable() const { return reportedAvailable_; }
+    int reportedBrightness() const { return reportedBrightness_; }
+    QString reportedMode() const { return reportedMode_; }
 
     Q_INVOKABLE void applyLighting(const QString &mode, int brightness, const QString &speed);
     Q_INVOKABLE void turnOff();
+    Q_INVOKABLE void refreshLightingStatus();
 
 Q_SIGNALS:
     void busyChanged();
     void feedbackChanged();
+    void lightingStatusChanged();
 
 private:
     void execute(const QStringList &arguments, const QString &successMessage);
     void setBusy(bool busy);
     void setFeedback(const QString &feedback);
+    void setLightingStatus(const QString &status);
 
     QProcess process_;
     QTimer timeout_;
     bool busy_ = false;
     bool timedOut_ = false;
-    QString feedback_ = QStringLiteral("Aktuální stav zařízení není načten. Hodnoty jsou pouze předvolba.");
+    bool reading_ = false;
+    bool reportedAvailable_ = false;
+    int reportedBrightness_ = -1;
+    QString reportedMode_;
+    QString lightingStatus_ = QStringLiteral("Stav podsvícení: nezjištěn.");
+    QString feedback_ = QStringLiteral("Změny se odesílají pouze tlačítky Nastavit a Vypnout.");
     QString successMessage_;
 };
 
@@ -61,9 +78,15 @@ KEncoderKcm::KEncoderKcm(QObject *parent, const KPluginMetaData &metaData)
         if (!busy_ || timedOut_)
             return;
         timeout_.stop();
-        setFeedback(error == QProcess::FailedToStart
-                        ? QStringLiteral("Nelze spustit encoder. Zkontrolujte instalaci.")
-                        : QStringLiteral("Chyba spuštění encoder: %1").arg(process_.errorString()));
+        const QString reason = error == QProcess::FailedToStart
+            ? QStringLiteral("Příkaz encoder nelze spustit.")
+            : QStringLiteral("Chyba programu encoder: %1").arg(process_.errorString());
+        if (reading_) {
+            setLightingStatus(QStringLiteral("Stav podsvícení: %1").arg(reason));
+            reading_ = false;
+        } else {
+            setFeedback(reason);
+        }
         setBusy(false);
     });
     connect(&process_, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this,
@@ -71,6 +94,26 @@ KEncoderKcm::KEncoderKcm(QObject *parent, const KPluginMetaData &metaData)
         if (!busy_)
             return;
         timeout_.stop();
+        if (reading_) {
+            reading_ = false;
+            EncoderLightingStatus result;
+            if (!timedOut_ && exitStatus == QProcess::NormalExit && exitCode == 0 &&
+                parseEncoderLightingStatus(process_.readAllStandardOutput(), &result)) {
+                reportedAvailable_ = true;
+                reportedBrightness_ = result.brightness;
+                reportedMode_ = result.mode;
+                setLightingStatus(result.description());
+            } else {
+                reportedAvailable_ = false;
+                const QString reason = timedOut_
+                    ? QStringLiteral("časový limit čtení")
+                    : QStringLiteral("nelze načíst z klávesnice (encoder --status --json)");
+                setLightingStatus(QStringLiteral("Stav podsvícení: %1.").arg(reason));
+            }
+            setBusy(false);
+            return;
+        }
+        bool commandSucceeded = false;
         if (timedOut_) {
             setFeedback(QStringLiteral("Klávesnice neodpověděla do 8 sekund."));
         } else {
@@ -78,7 +121,8 @@ KEncoderKcm::KEncoderKcm(QObject *parent, const KPluginMetaData &metaData)
             const QString err = QString::fromUtf8(process_.readAllStandardError()).trimmed();
             if (exitStatus == QProcess::NormalExit && exitCode == 0 &&
                 !out.contains(QStringLiteral("Command failed"))) {
-                setFeedback(QStringLiteral("Příkaz dokončen: %1. Skutečný stav HW nebyl nezávisle ověřen.")
+                commandSucceeded = true;
+                setFeedback(QStringLiteral("Příkaz odeslán: %1. Výsledek čtení je uveden výše.")
                                 .arg(successMessage_));
             } else {
                 const QString detail = !err.isEmpty() ? err : out;
@@ -86,7 +130,11 @@ KEncoderKcm::KEncoderKcm(QObject *parent, const KPluginMetaData &metaData)
             }
         }
         setBusy(false);
+        if (commandSucceeded)
+            QTimer::singleShot(0, this, [this] { refreshLightingStatus(); });
     });
+    // A read-only query is the only action allowed when the KCM opens.
+    QTimer::singleShot(0, this, [this] { refreshLightingStatus(); });
 }
 
 void KEncoderKcm::applyLighting(const QString &mode, int brightness, const QString &speed)
@@ -100,6 +148,10 @@ void KEncoderKcm::applyLighting(const QString &mode, int brightness, const QStri
     if (mode == QLatin1String("static")) {
         execute({QStringLiteral("-b"), QString::number(brightness), QStringLiteral("-s")},
                 QStringLiteral("statické podsvícení"));
+        return;
+    }
+    if (mode == QLatin1String("wave")) {
+        setFeedback(QStringLiteral("Zvolte směr vlny před odesláním nastavení."));
         return;
     }
     if (mode != QLatin1String("breathe") && mode != QLatin1String("left_wave") &&
@@ -133,13 +185,42 @@ void KEncoderKcm::execute(const QStringList &arguments, const QString &successMe
         return;
     }
     successMessage_ = successMessage;
+    reading_ = false;
     timedOut_ = false;
+    timeout_.setInterval(8000);
     process_.setProgram(cli);
     process_.setArguments(arguments); // No shell, no user-controlled command string.
     setBusy(true);
     setFeedback(QStringLiteral("Odesílání příkazu…"));
     timeout_.start();
     process_.start();
+}
+
+void KEncoderKcm::refreshLightingStatus()
+{
+    if (busy_)
+        return;
+    const QString cli = QStandardPaths::findExecutable(QStringLiteral("encoder"));
+    if (cli.isEmpty()) {
+        reportedAvailable_ = false;
+        setLightingStatus(QStringLiteral("Stav podsvícení: chybí encoder v PATH."));
+        return;
+    }
+    reading_ = true;
+    timedOut_ = false;
+    reportedAvailable_ = false;
+    setLightingStatus(QStringLiteral("Zjišťuji skutečný stav klávesnice…"));
+    process_.setProgram(cli);
+    process_.setArguments({QStringLiteral("--status"), QStringLiteral("--json")});
+    setBusy(true);
+    timeout_.start(4000);
+    process_.start();
+}
+
+void KEncoderKcm::setLightingStatus(const QString &status)
+{
+    lightingStatus_ = status;
+    Q_EMIT lightingStatusChanged();
 }
 
 void KEncoderKcm::setBusy(bool busy)

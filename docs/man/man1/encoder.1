@@ -7,6 +7,8 @@ encoder \- ovládání podsvícení klávesnice HP OMEN Encoder z příkazové �
 .RB [ \-s | \-o | \-a " " REŽIM ]
 .RB [ \-v " " RYCHLOST ]
 .br
+.B encoder --status [--json]
+.br
 .B encoder -h
 .SH POPIS
 .B encoder
@@ -18,9 +20,31 @@ Program vyhledá odpovídající zařízení
 .I /dev/hidrawX
 podle identifikátorů USB a velikosti HID report deskriptoru.
 K přenosu příkazů potřebuje přístup pro čtení i zápis.
-Příkazy mění nastavení zařízení; program neumí zjistit aktuální
-jas, animaci ani rychlost z klávesnice.
+Běžné příkazy mění nastavení zařízení. Volba
+.B --status
+naopak čte aktuálně hlášený jas a skupinu efektu bez změny
+podsvícení. Směr vlny a rychlost animace zatím nelze přečíst.
 .SH VOLBY
+.TP
+.B --status
+Provede pouze čtecí dotaz GetDeviceInfo (80 01), bez odeslání
+příkazů pro nastavení jasu či efektu. Vrátí stav zapnuto/vypnuto,
+hlášený jas 0 až 3 a skupinu efektu. Směr vlny a rychlost animace
+zůstávají neznámé. Nelze kombinovat s přepínači pro zápis.
+.TP
+.B --json
+S volbou
+.B --status
+vypíše strojově čitelný JSON. Pole
+.B direction
+a
+.B speed
+jsou vždy
+.BR null ;
+pole
+.B source
+je
+.BR hardware .
 .TP
 .B \-h
 Zobrazí stručnou nápovědu a skončí. Nevyžaduje připojenou klávesnici.
@@ -106,8 +130,9 @@ a nakonec
 Pro jednoznačné chování používejte jen jeden přepínač režimu.
 .PP
 Neznámé argumenty nebo nepodporované hodnoty nejsou ve stávající
-implementaci vždy hlášeny jako chyba. Nejde o nástroj pro čtení
-aktuální konfigurace.
+implementaci vždy hlášeny jako chyba. Volba
+.B --status
+je samostatná čtecí cesta bez vedlejšího zápisu.
 .SH OPRÁVNĚNÍ A ZAŘÍZENÍ
 .B encoder
 otevírá odpovídající
@@ -135,11 +160,20 @@ otevření zařízení. V současné implementaci nemusí návratový kód
 .TP
 .B 1
 Odpovídající klávesnici se nepodařilo otevřít (nebyla nalezena
-nebo přístup nebyl povolen).
+nebo přístup nebyl povolen). U čtecího režimu také chyba
+komunikace s klávesnicí nebo nepodporovaný formát odpovědi.
+.TP
+.B 2
+Neplatná kombinace přepínačů u
+.B --status
+nebo
+.BR --json .
 .PP
-Selhání komunikace HID může program vypsat jako
+Selhání komunikace u starších zapisovacích příkazů může program
+vypsat jako
 .B Command failed
 bez odpovídajícího nenulového návratového kódu.
+Čtecí režim vypisuje chyby na standardní chybový výstup.
 .SH SOUBORY
 .TP
 .I /dev/hidrawX
