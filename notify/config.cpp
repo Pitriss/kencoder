@@ -63,6 +63,33 @@ bool validIdentifier(const QJsonObject &value)
            !value.value(QStringLiteral("name")).toString().trimmed().isEmpty();
 }
 
+QJsonObject defaultPreset()
+{
+    // Virtual migration: do not write a user's configuration merely by reading it.
+    return {{QStringLiteral("id"), QString::fromLatin1(kDefaultPresetId)},
+            {QStringLiteral("name"), QStringLiteral("Default")},
+            {QStringLiteral("steps"), QJsonArray{
+                QJsonObject{{QStringLiteral("type"), QStringLiteral("static")},
+                            {QStringLiteral("brightness"), 1},
+                            {QStringLiteral("duration_ms"), 50}}
+            }}};
+}
+
+void ensureDefaultFirst(Configuration *config)
+{
+    for (int i = 0; i < config->presets.size(); ++i) {
+        QJsonObject entry = config->presets.at(i).toObject();
+        if (entry.value(QStringLiteral("id")).toString() == QLatin1String(kDefaultPresetId)) {
+            // The reserved entry is always shown first and always named Default.
+            entry.insert(QStringLiteral("name"), QStringLiteral("Default"));
+            config->presets.removeAt(i);
+            config->presets.prepend(entry);
+            return;
+        }
+    }
+    config->presets.prepend(defaultPreset());
+}
+
 bool validStep(const QJsonObject &step)
 {
     const QString type = step.value(QStringLiteral("type")).toString();
@@ -105,6 +132,7 @@ bool load(Configuration *out, QString *error)
         !parseFile(rulesFile(), "rules", &rules, error))
         return false;
     result.presets = presets.value(QStringLiteral("presets")).toArray();
+    ensureDefaultFirst(&result);
     result.rules = rules.value(QStringLiteral("rules")).toArray();
     if (!rules.isEmpty()) {
         if (!rules.value(QStringLiteral("enabled")).isBool() ||
@@ -140,6 +168,10 @@ bool validate(const Configuration &config, QString *error)
         const QJsonArray steps = preset.value(QStringLiteral("steps")).toArray();
         if (steps.isEmpty())
             return fail(error, QStringLiteral("Preset musí obsahovat alespoň jeden krok: %1").arg(id));
+        // The Default preset describes a lighting state, never a timed wait.
+        if (id == QLatin1String(kDefaultPresetId) &&
+            steps.first().toObject().value(QStringLiteral("type")).toString() == QLatin1String("wait"))
+            return fail(error, QStringLiteral("Default nesmí začínat krokem Čekat."));
         for (const auto &step : steps) {
             if (!step.isObject() || !validStep(step.toObject()))
                 return fail(error, QStringLiteral("Neplatný krok v presetu: %1").arg(id));

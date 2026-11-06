@@ -12,6 +12,28 @@ KCM.SimpleKCM {
     implicitHeight: Kirigami.Units.gridUnit * 40
     property string selectedPresetId: ""
     property string selectedRuleId: ""
+    readonly property string defaultPresetId: "default"
+    // Confirmations and errors temporarily replace the listener state in the status bar.
+    property string uiStatus: ""
+    function showStatus(message) {
+        uiStatus = message
+        statusTimeout.restart()
+    }
+    Timer {
+        id: statusTimeout
+        interval: 6000
+        repeat: false
+        onTriggered: root.uiStatus = ""
+    }
+    Connections {
+        target: kcm
+        function onFeedbackChanged() { root.showStatus(kcm.feedback) }
+    }
+    function showListenerHint() {
+        root.showStatus(backendCombo.currentValue === "kde-watcher"
+            ? "Vybrán listener KDE watcher. Dostupnost se ověří při spuštění; změny potvrďte tlačítkem Použít."
+            : "Listener KNotify scanner je plánován pro fázi 2 a nyní jej nelze aktivovat.")
+    }
 
     function presetById(id) {
         const data = kcm.presets
@@ -25,7 +47,7 @@ KCM.SimpleKCM {
             if (data[i].id === id) return data[i]
         return null
     }
-    function stepDescription(s) {
+    function stepDescription(s, isDefault) {
         const names = {
             "off": "Vypnout", "static": "Statické", "breathe": "Dýchání",
             "ripple": "Reakce na stisk", "left_wave": "Vlna zleva →",
@@ -35,7 +57,7 @@ KCM.SimpleKCM {
         if (s.type !== "wait" && s.type !== "off") extra += " · jas " + s.brightness
         if (s.type !== "wait" && s.type !== "off" && s.type !== "static")
             extra += " · rychlost " + s.speed
-        return (names[s.type] || s.type) + extra + " · " + s.duration_ms + " ms"
+        return (names[s.type] || s.type) + extra + (isDefault ? "" : " · " + s.duration_ms + " ms")
     }
     function stepIsAnimated(type) {
         return type !== "static" && type !== "off" && type !== "wait"
@@ -55,18 +77,18 @@ KCM.SimpleKCM {
             text: "Aktivovat naslouchání notifikacím"
             checked: kcm.listeningEnabled
             Layout.fillWidth: true
+            onClicked: root.showStatus("Změna listeneru čeká na potvrzení tlačítkem Použít nastavení listeneru.")
         }
-        RowLayout {
-            Layout.fillWidth: true
-            Controls.Label { text: "Backend:" }
-            Controls.ComboBox {
+        Controls.ComboBox {
                 id: backendCombo
                 Layout.fillWidth: true
+                Accessible.name: "Režim listeneru"
+                onActivated: root.showListenerHint()
                 textRole: "label"
                 valueRole: "value"
                 model: [
-                    { label: "KEncoder listener (KDE watcher)", value: "kde-watcher" },
-                    { label: "KNotify scanner / user daemon (fáze 2)", value: "knotify-scanner" }
+                    { label: "Listener KDE watcher", value: "kde-watcher" },
+                    { label: "Listener KNotify scanner (fáze 2)", value: "knotify-scanner" }
                 ]
                 currentIndex: kcm.backend === "knotify-scanner" ? 1 : 0
                 delegate: Controls.ItemDelegate {
@@ -77,130 +99,302 @@ KCM.SimpleKCM {
                     onClicked: {
                         backendCombo.currentIndex = index
                         backendCombo.popup.close()
+                        root.showListenerHint()
+                    }
+                }
+        }
+        Controls.Button {
+            text: "Použít nastavení listeneru"
+            Layout.alignment: Qt.AlignLeft
+            onClicked: kcm.applyEssentials(enabledCheck.checked, backendCombo.currentValue)
+        }
+
+        // Drag the horizontal splitter to resize PRESETS and RULES up/down only.
+        Controls.SplitView {
+            id: sectionsSplit
+            orientation: Qt.Vertical
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            // Keep extra space above/below the hairline without altering pane sizing.
+            // The vertical splitter still resizes panels only up/down.
+            handle: Item {
+                implicitWidth: 1
+                implicitHeight: Kirigami.Units.smallSpacing * 5
+                HoverHandler {
+                    id: splitterHover
+                    cursorShape: Qt.SplitVCursor
+                }
+                Rectangle {
+                    anchors.left: parent.left
+                    anchors.right: splitterGrip.left
+                    anchors.rightMargin: Kirigami.Units.smallSpacing
+                    anchors.verticalCenter: parent.verticalCenter
+                    height: 1
+                    color: Kirigami.Theme.separatorColor
+                    opacity: splitterHover.hovered ? 0.8 : 0.45
+                }
+                Row {
+                    id: splitterGrip
+                    anchors.centerIn: parent
+                    spacing: Kirigami.Units.smallSpacing / 2
+                    Repeater {
+                        model: 3
+                        Rectangle {
+                            width: 2
+                            height: Kirigami.Units.smallSpacing * 2
+                            radius: 1
+                            color: Kirigami.Theme.textColor
+                            opacity: splitterHover.hovered ? 0.9 : 0.55
+                        }
+                    }
+                }
+                Rectangle {
+                    anchors.left: splitterGrip.right
+                    anchors.leftMargin: Kirigami.Units.smallSpacing
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    height: 1
+                    color: Kirigami.Theme.separatorColor
+                    opacity: splitterHover.hovered ? 0.8 : 0.45
+                }
+            }
+            ColumnLayout {
+                Controls.SplitView.minimumHeight: Kirigami.Units.gridUnit * 11
+                Controls.SplitView.preferredHeight: sectionsSplit.height / 2
+                spacing: Kirigami.Units.smallSpacing
+                RowLayout {
+                    Layout.fillWidth: true
+                    Controls.Label {
+                        text: "Presety světelných sekvencí"
+                        font.bold: true
+                        Layout.fillWidth: true
+                    }
+                    Controls.Button {
+                        text: "Nový preset"
+                        onClicked: presetDialog.edit("")
+                    }
+                }
+                Controls.ScrollView {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    Layout.minimumHeight: Kirigami.Units.gridUnit * 5
+                    background: Controls.Frame {}
+                    ListView {
+                        id: presetsView
+                        clip: true
+                        model: kcm.presets
+                        boundsBehavior: Flickable.StopAtBounds
+                        delegate: Controls.ItemDelegate {
+                            width: presetsView.width
+                            text: modelData.id === root.defaultPresetId
+                                ? "Default (návratový stav)"
+                                : modelData.name + " (" + modelData.steps.length + " kroků)"
+                            highlighted: root.selectedPresetId === modelData.id
+                            onClicked: root.selectedPresetId = modelData.id
+                        }
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Controls.Button {
+                        text: "Přehrát"
+                        enabled: root.selectedPresetId !== "" && !kcm.busy
+                        onClicked: kcm.playPreset(root.selectedPresetId)
+                    }
+                    Controls.Button {
+                        text: "Upravit"
+                        enabled: root.selectedPresetId !== ""
+                        onClicked: presetDialog.edit(root.selectedPresetId)
+                    }
+                    Controls.Button {
+                        text: "Smazat"
+                        enabled: root.selectedPresetId !== "" && root.selectedPresetId !== root.defaultPresetId
+                        onClicked: {
+                            confirmDialog.isPreset = true
+                            confirmDialog.deleteId = root.selectedPresetId
+                            confirmDialog.open()
+                        }
+                    }
+                }
+
+            }
+            ColumnLayout {
+                Controls.SplitView.minimumHeight: Kirigami.Units.gridUnit * 11
+                Controls.SplitView.fillHeight: true
+                spacing: Kirigami.Units.smallSpacing
+                RowLayout {
+                    Layout.fillWidth: true
+                    Controls.Label {
+                        text: "Pravidla reakcí na notifikace"
+                        font.bold: true
+                        Layout.fillWidth: true
+                    }
+                    Controls.Button {
+                        text: "Nové pravidlo"
+                        enabled: kcm.presets.length > 0
+                        onClicked: ruleDialog.edit("")
+                    }
+                }
+                Controls.ScrollView {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    Layout.minimumHeight: Kirigami.Units.gridUnit * 5
+                    background: Controls.Frame {}
+                    ListView {
+                        id: rulesView
+                        clip: true
+                        model: kcm.rules
+                        boundsBehavior: Flickable.StopAtBounds
+                        // Keep the source delegate alive while auto-scrolling past many rows.
+                        cacheBuffer: 4096
+                        property string draggedRuleId: ""
+                        property int dragTargetIndex: -1
+                        property real dragPointerY: 0
+                        property int autoScrollDirection: 0
+                        function updateDragTarget(y) {
+                            if (draggedRuleId === "") return
+                            dragPointerY = y
+                            autoScrollDirection = y < 28 ? -1 : (y > height - 28 ? 1 : 0)
+                            const insideY = Math.max(1, Math.min(height - 2, y))
+                            const indexHere = indexAt(1, contentY + insideY)
+                            if (indexHere >= 0) dragTargetIndex = indexHere
+                        }
+                        function clearDrag() {
+                            draggedRuleId = ""
+                            dragTargetIndex = -1
+                            autoScrollDirection = 0
+                        }
+                        Timer {
+                            interval: 45
+                            repeat: true
+                            running: rulesView.draggedRuleId !== "" && rulesView.autoScrollDirection !== 0
+                            onTriggered: {
+                                const maxY = Math.max(0, rulesView.contentHeight - rulesView.height)
+                                rulesView.contentY = Math.max(0, Math.min(maxY,
+                                    rulesView.contentY + 15 * rulesView.autoScrollDirection))
+                                rulesView.updateDragTarget(rulesView.dragPointerY)
+                            }
+                        }
+                        delegate: Controls.ItemDelegate {
+                            width: rulesView.width
+                            highlighted: root.selectedRuleId === modelData.id
+                            // The target is highlighted while the user drags the grip.
+                            Rectangle {
+                                anchors.fill: parent
+                                color: "transparent"
+                                border.color: Kirigami.Theme.highlightColor
+                                border.width: rulesView.draggedRuleId !== "" &&
+                                              rulesView.dragTargetIndex === index ? 2 : 0
+                                radius: Kirigami.Units.smallSpacing
+                                z: 2
+                            }
+                            contentItem: RowLayout {
+                                spacing: Kirigami.Units.smallSpacing
+                                Controls.ToolButton {
+                                    id: dragGrip
+                                    text: "⠿"
+                                    Accessible.name: "Přetáhnout pravidlo myší"
+                                    Controls.ToolTip.visible: dragMouse.containsMouse && !dragMouse.pressed
+                                    Controls.ToolTip.text: "Přetáhnout pro změnu priority"
+                                    Controls.ToolTip.delay: 700
+                                    MouseArea {
+                                        id: dragMouse
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        preventStealing: true
+                                        cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                                        onPressed: (mouse) => {
+                                            root.selectedRuleId = modelData.id
+                                            rulesView.draggedRuleId = modelData.id
+                                            rulesView.dragTargetIndex = index
+                                            rulesView.updateDragTarget(mapToItem(rulesView, mouse.x, mouse.y).y)
+                                        }
+                                        onPositionChanged: (mouse) => {
+                                            if (pressed)
+                                                rulesView.updateDragTarget(mapToItem(rulesView, mouse.x, mouse.y).y)
+                                        }
+                                        onReleased: (mouse) => {
+                                            const id = rulesView.draggedRuleId
+                                            rulesView.updateDragTarget(mapToItem(rulesView, mouse.x, mouse.y).y)
+                                            const target = rulesView.dragTargetIndex
+                                            rulesView.clearDrag()
+                                            if (id !== "" && target >= 0 && kcm.moveRuleTo(id, target))
+                                                root.selectedRuleId = id
+                                        }
+                                        onCanceled: rulesView.clearDrag()
+                                    }
+                                }
+                                Controls.CheckBox {
+                                    checked: modelData.enabled
+                                    onClicked: {
+                                        if (!kcm.setRuleEnabled(modelData.id, checked))
+                                            checked = modelData.enabled
+                                    }
+                                }
+                                Controls.Label {
+                                    Layout.fillWidth: true
+                                    text: modelData.name
+                                    opacity: modelData.enabled ? 1.0 : 0.55
+                                    elide: Text.ElideRight
+                                }
+                                Controls.ToolButton {
+                                    text: "↑"
+                                    enabled: index > 0
+                                    Accessible.name: "Přesunout pravidlo nahoru"
+                                    onClicked: {
+                                        if (kcm.moveRule(modelData.id, -1))
+                                            root.selectedRuleId = modelData.id
+                                    }
+                                }
+                                Controls.ToolButton {
+                                    text: "↓"
+                                    enabled: index < rulesView.count - 1
+                                    Accessible.name: "Přesunout pravidlo dolů"
+                                    onClicked: {
+                                        if (kcm.moveRule(modelData.id, 1))
+                                            root.selectedRuleId = modelData.id
+                                    }
+                                }
+                            }
+                            onClicked: root.selectedRuleId = modelData.id
+                        }
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Controls.Button {
+                        text: "Upravit"
+                        enabled: root.selectedRuleId !== ""
+                        onClicked: ruleDialog.edit(root.selectedRuleId)
+                    }
+                    Controls.Button {
+                        text: "Smazat"
+                        enabled: root.selectedRuleId !== ""
+                        onClicked: {
+                            confirmDialog.isPreset = false
+                            confirmDialog.deleteId = root.selectedRuleId
+                            confirmDialog.open()
+                        }
                     }
                 }
             }
         }
-        Controls.Button {
-            text: "Použít nastavení naslouchání"
-            Layout.alignment: Qt.AlignLeft
-            onClicked: kcm.applyEssentials(enabledCheck.checked, backendCombo.currentValue)
-        }
-        Controls.Label {
+        // Idle: listener state; confirmations/errors: only the message, then back to idle.
+        Controls.Frame {
             Layout.fillWidth: true
-            text: "Listener je volitelný. Výchozí stav: vypnuto. Druhý backend zatím není implementován."
-            wrapMode: Text.WordWrap
-            color: Kirigami.Theme.disabledTextColor
-        }
-
-        Kirigami.Separator { Layout.fillWidth: true }
-        RowLayout {
-            Layout.fillWidth: true
+            Layout.topMargin: Kirigami.Units.smallSpacing * 2
+            Layout.minimumHeight: Kirigami.Units.gridUnit * 3
+            padding: Kirigami.Units.smallSpacing
             Controls.Label {
-                text: "Presety světelných sekvencí"
-                font.bold: true
-                Layout.fillWidth: true
+                anchors.fill: parent
+                text: root.uiStatus.length > 0 ? root.uiStatus
+                     : (kcm.listeningEnabled ? "Listener: povolen" : "Listener: vypnut")
+                font.bold: root.uiStatus.length === 0
+                wrapMode: Text.WordWrap
+                maximumLineCount: 3
+                elide: Text.ElideRight
+                verticalAlignment: Text.AlignVCenter
             }
-            Controls.Button {
-                text: "Nový preset"
-                onClicked: presetDialog.edit("")
-            }
-        }
-        Controls.ScrollView {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            Layout.minimumHeight: Kirigami.Units.gridUnit * 5
-            background: Controls.Frame {}
-            ListView {
-                id: presetsView
-                clip: true
-                model: kcm.presets
-                boundsBehavior: Flickable.StopAtBounds
-                delegate: Controls.ItemDelegate {
-                    width: presetsView.width
-                    text: modelData.name + " (" + modelData.steps.length + " kroků)"
-                    highlighted: root.selectedPresetId === modelData.id
-                    onClicked: root.selectedPresetId = modelData.id
-                }
-            }
-        }
-        RowLayout {
-            Layout.fillWidth: true
-            Controls.Button {
-                text: "Přehrát"
-                enabled: root.selectedPresetId !== "" && !kcm.busy
-                onClicked: kcm.playPreset(root.selectedPresetId)
-            }
-            Controls.Button {
-                text: "Upravit"
-                enabled: root.selectedPresetId !== ""
-                onClicked: presetDialog.edit(root.selectedPresetId)
-            }
-            Controls.Button {
-                text: "Smazat"
-                enabled: root.selectedPresetId !== ""
-                onClicked: {
-                    confirmDialog.isPreset = true
-                    confirmDialog.deleteId = root.selectedPresetId
-                    confirmDialog.open()
-                }
-            }
-        }
-
-        Kirigami.Separator { Layout.fillWidth: true }
-        RowLayout {
-            Layout.fillWidth: true
-            Controls.Label {
-                text: "Pravidla reakcí na notifikace"
-                font.bold: true
-                Layout.fillWidth: true
-            }
-            Controls.Button {
-                text: "Nové pravidlo"
-                enabled: kcm.presets.length > 0
-                onClicked: ruleDialog.edit("")
-            }
-        }
-        Controls.ScrollView {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            Layout.minimumHeight: Kirigami.Units.gridUnit * 5
-            background: Controls.Frame {}
-            ListView {
-                id: rulesView
-                clip: true
-                model: kcm.rules
-                boundsBehavior: Flickable.StopAtBounds
-                delegate: Controls.ItemDelegate {
-                    width: rulesView.width
-                    text: (modelData.enabled ? "● " : "○ ") + modelData.name
-                    highlighted: root.selectedRuleId === modelData.id
-                    onClicked: root.selectedRuleId = modelData.id
-                }
-            }
-        }
-        RowLayout {
-            Layout.fillWidth: true
-            Controls.Button {
-                text: "Upravit"
-                enabled: root.selectedRuleId !== ""
-                onClicked: ruleDialog.edit(root.selectedRuleId)
-            }
-            Controls.Button {
-                text: "Smazat"
-                enabled: root.selectedRuleId !== ""
-                onClicked: {
-                    confirmDialog.isPreset = false
-                    confirmDialog.deleteId = root.selectedRuleId
-                    confirmDialog.open()
-                }
-            }
-        }
-        Controls.Label {
-            Layout.fillWidth: true
-            text: kcm.feedback
-            wrapMode: Text.WordWrap
-            color: Kirigami.Theme.textColor
         }
     }
 
@@ -211,16 +405,47 @@ KCM.SimpleKCM {
         x: Math.max(0, (root.width - width) / 2)
         y: Math.max(0, (root.height - height) / 2)
         width: Math.min(root.width * 0.9, Kirigami.Units.gridUnit * 35)
-        height: Math.min(root.height * 0.88, Kirigami.Units.gridUnit * 34)
+        height: Math.min(root.height * 0.9, Kirigami.Units.gridUnit * 36)
         title: editingId === "" ? "Nový preset" : "Upravit preset"
         property string editingId: ""
+        readonly property bool isDefault: editingId === root.defaultPresetId
+        property int editingStepIndex: -1
         property var draftSteps: []
+        readonly property real fieldLabelWidth: Kirigami.Units.gridUnit * 5
+        // A resize handle may enlarge the dialog, never shrink its opening size.
+        property real minimumResizeWidth: 0
+        property real minimumResizeHeight: 0
         function edit(id) {
             editingId = id
             const preset = root.presetById(id)
-            presetName.text = preset ? preset.name : ""
-            draftSteps = preset ? preset.steps.slice() : []
+            presetName.text = isDefault ? "Default" : (preset ? preset.name : "")
+            editingStepIndex = -1
+            draftSteps = preset ? (isDefault
+                ? [Object.assign({}, preset.steps[0])]
+                : preset.steps.map(s => Object.assign({}, s))) : []
+            if (isDefault && draftSteps.length > 0)
+                editStep(0)
+            width = Math.min(root.width * 0.9, Kirigami.Units.gridUnit * 35)
+            height = Math.min(root.height * 0.9, Kirigami.Units.gridUnit * 36)
+            minimumResizeWidth = width
+            minimumResizeHeight = height
+            x = Math.max(0, (parent.width - width) / 2)
+            y = Math.max(0, (parent.height - height) / 2)
             open()
+        }
+        function editStep(i) {
+            if (i < 0 || i >= draftSteps.length) return
+            editingStepIndex = i
+            const step = draftSteps[i]
+            for (let n = 0; n < stepType.count; ++n) {
+                if (stepType.valueAt(n) === step.type) {
+                    stepType.currentIndex = n
+                    break
+                }
+            }
+            if (step.brightness !== undefined) brightnessCombo.currentIndex = step.brightness
+            if (step.speed !== undefined) speedCombo.currentIndex = step.speed - 1
+            if (step.duration_ms !== undefined) durationSpin.value = step.duration_ms
         }
         function moveStep(i, offset) {
             const target = i + offset
@@ -230,18 +455,26 @@ KCM.SimpleKCM {
             entries[i] = entries[target]
             entries[target] = tmp
             draftSteps = entries
+            editingStepIndex = -1
         }
         function removeStep(i) {
             const entries = draftSteps.slice()
             entries.splice(i, 1)
             draftSteps = entries
+            editingStepIndex = -1
         }
         function addStep() {
             const type = stepType.currentValue
-            const step = { "type": type, "duration_ms": durationSpin.value }
-            if (type !== "wait" && type !== "off") step.brightness = brightnessSpin.value
-            if (root.stepIsAnimated(type)) step.speed = speedSpin.value
-            draftSteps = draftSteps.concat([step])
+            if (isDefault && type === "wait") return
+            if (isDefault && editingStepIndex < 0 && draftSteps.length > 0) return
+            const step = { "type": type, "duration_ms": isDefault ? 50 : durationSpin.value }
+            if (type !== "wait" && type !== "off") step.brightness = brightnessCombo.currentValue
+            if (root.stepIsAnimated(type)) step.speed = speedCombo.currentValue
+            const entries = draftSteps.slice()
+            if (editingStepIndex >= 0) entries[editingStepIndex] = step
+            else entries.push(step)
+            draftSteps = isDefault ? entries.slice(0, 1) : entries
+            editingStepIndex = -1
         }
         contentItem: ColumnLayout {
             spacing: Kirigami.Units.smallSpacing
@@ -249,8 +482,14 @@ KCM.SimpleKCM {
                 id: presetName
                 Layout.fillWidth: true
                 placeholderText: "Název presetu"
+                readOnly: presetDialog.isDefault
             }
-            Controls.Label { text: "Pořadí kroků (opakování je možné přidáním stejného kroku):" }
+            Controls.Label {
+                text: presetDialog.isDefault
+                    ? "Default: použije se pouze první krok, bez čekání na jeho trvání."
+                    : "Pořadí kroků (opakování je možné přidáním stejného kroku):"
+                wrapMode: Text.WordWrap
+            }
             Controls.ScrollView {
                 Layout.fillHeight: true
                 Layout.fillWidth: true
@@ -263,29 +502,41 @@ KCM.SimpleKCM {
                         width: stepsView.width
                         Controls.Label {
                             Layout.fillWidth: true
-                            text: (index + 1) + ". " + root.stepDescription(modelData)
+                            text: (index + 1) + ". " + root.stepDescription(modelData, presetDialog.isDefault)
                             elide: Text.ElideRight
                         }
                         Controls.Button {
+                            text: "Upravit"
+                            onClicked: presetDialog.editStep(index)
+                        }
+                        Controls.Button {
                             text: "↑"
+                            visible: !presetDialog.isDefault
                             enabled: index > 0
                             onClicked: presetDialog.moveStep(index, -1)
                         }
                         Controls.Button {
                             text: "↓"
+                            visible: !presetDialog.isDefault
                             enabled: index < presetDialog.draftSteps.length - 1
                             onClicked: presetDialog.moveStep(index, 1)
                         }
                         Controls.Button {
                             text: "×"
+                            visible: !presetDialog.isDefault
                             onClicked: presetDialog.removeStep(index)
                         }
                     }
                 }
             }
-            Controls.Label { text: "Přidat krok:"; font.bold: true }
-            Controls.ComboBox {
-                id: stepType
+            RowLayout {
+                Layout.fillWidth: true
+                Controls.Label {
+                    text: "Efekt:"
+                    Layout.preferredWidth: presetDialog.fieldLabelWidth
+                }
+                Controls.ComboBox {
+                    id: stepType
                 Layout.fillWidth: true
                 textRole: "label"
                 valueRole: "value"
@@ -298,29 +549,84 @@ KCM.SimpleKCM {
                     {label: "Reakce na stisk", value: "ripple"},
                     {label: "Čekat bez příkazu", value: "wait"}
                 ]
+                delegate: Controls.ItemDelegate {
+                    width: stepType.width
+                    text: modelData.label
+                    enabled: !presetDialog.isDefault || modelData.value !== "wait"
+                    highlighted: stepType.highlightedIndex === index
+                    onClicked: {
+                        stepType.currentIndex = index
+                        stepType.popup.close()
+                    }
+                }
+                }
+            }
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: Kirigami.Units.smallSpacing
+                RowLayout {
+                    Layout.fillWidth: true
+                    Controls.Label {
+                        text: "Jas:"
+                        Layout.preferredWidth: presetDialog.fieldLabelWidth
+                    }
+                    Controls.ComboBox {
+                        id: brightnessCombo
+                        Layout.fillWidth: true
+                        textRole: "label"
+                        valueRole: "value"
+                        currentIndex: 1
+                        enabled: stepType.currentValue !== "wait" && stepType.currentValue !== "off"
+                        model: [
+                            {label: "0", value: 0}, {label: "1", value: 1},
+                            {label: "2", value: 2}, {label: "3", value: 3}
+                        ]
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Controls.Label {
+                        text: "Rychlost:"
+                        Layout.preferredWidth: presetDialog.fieldLabelWidth
+                    }
+                    Controls.ComboBox {
+                        id: speedCombo
+                        Layout.fillWidth: true
+                        textRole: "label"
+                        valueRole: "value"
+                        currentIndex: 1
+                        enabled: root.stepIsAnimated(stepType.currentValue)
+                        model: [
+                            {label: "Pomalá", value: 1},
+                            {label: "Střední", value: 2},
+                            {label: "Rychlá", value: 3}
+                        ]
+                    }
+                }
             }
             RowLayout {
                 Layout.fillWidth: true
-                Controls.Label { text: "Jas:" }
-                Controls.SpinBox {
-                    id: brightnessSpin
-                    from: 0; to: 3; value: 1
-                    enabled: stepType.currentValue !== "wait" && stepType.currentValue !== "off"
+                Controls.Label {
+                    text: "Trvání:"
+                    Layout.preferredWidth: presetDialog.fieldLabelWidth
+                    visible: !presetDialog.isDefault
                 }
-                Controls.Label { text: "Rychlost:" }
-                Controls.SpinBox {
-                    id: speedSpin
-                    from: 1; to: 3; value: 2
-                    enabled: root.stepIsAnimated(stepType.currentValue)
-                }
-            }
-            RowLayout {
-                Controls.Label { text: "Trvání (ms):" }
                 Controls.SpinBox {
                     id: durationSpin
                     from: 50; to: 60000; value: 200; stepSize: 50
+                    visible: !presetDialog.isDefault
                 }
-                Controls.Button { text: "Přidat krok"; onClicked: presetDialog.addStep() }
+                Controls.Button {
+                    text: presetDialog.editingStepIndex >= 0 ? "Uložit krok" : "Přidat krok"
+                    enabled: !presetDialog.isDefault || presetDialog.editingStepIndex >= 0 ||
+                             presetDialog.draftSteps.length === 0
+                    onClicked: presetDialog.addStep()
+                }
+                Controls.Button {
+                    text: "Zrušit úpravu"
+                    visible: presetDialog.editingStepIndex >= 0 && !presetDialog.isDefault
+                    onClicked: presetDialog.editingStepIndex = -1
+                }
             }
             RowLayout {
                 Layout.alignment: Qt.AlignRight
@@ -329,10 +635,47 @@ KCM.SimpleKCM {
                     text: "Uložit preset"
                     enabled: presetName.text.trim().length > 0 && presetDialog.draftSteps.length > 0
                     onClicked: {
+                        if (presetDialog.editingStepIndex >= 0)
+                            presetDialog.addStep()
                         if (kcm.savePreset(presetDialog.editingId, presetName.text,
                                            presetDialog.draftSteps)) {
                             root.selectedPresetId = ""
                             presetDialog.close()
+                        }
+                    }
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Item { Layout.fillWidth: true }
+                Controls.Label { text: "Změnit velikost"; color: Kirigami.Theme.disabledTextColor }
+                Item {
+                    Layout.preferredWidth: Kirigami.Units.gridUnit
+                    Layout.preferredHeight: Kirigami.Units.gridUnit
+                    Controls.Label { anchors.centerIn: parent; text: "◢" }
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.SizeFDiagCursor
+                        property real startX: 0
+                        property real startY: 0
+                        property real startWidth: 0
+                        property real startHeight: 0
+                        onPressed: (mouse) => {
+                            const point = mapToItem(presetDialog.parent, mouse.x, mouse.y)
+                            startX = point.x
+                            startY = point.y
+                            startWidth = presetDialog.width
+                            startHeight = presetDialog.height
+                        }
+                        onPositionChanged: (mouse) => {
+                            if (!pressed) return
+                            const point = mapToItem(presetDialog.parent, mouse.x, mouse.y)
+                            presetDialog.width = Math.max(presetDialog.minimumResizeWidth,
+                                Math.min(presetDialog.parent.width - presetDialog.x,
+                                         startWidth + point.x - startX))
+                            presetDialog.height = Math.max(presetDialog.minimumResizeHeight,
+                                Math.min(presetDialog.parent.height - presetDialog.y,
+                                         startHeight + point.y - startY))
                         }
                     }
                 }

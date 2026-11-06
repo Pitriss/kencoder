@@ -45,9 +45,14 @@ public:
         connect(&playback_, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                 this, [this](int code, QProcess::ExitStatus status) {
             setBusy(false);
-            setFeedback(status == QProcess::NormalExit && code == 0
-                ? QStringLiteral("Sekvence předána/přehrána. Stav klávesnice není ověřen readbackem.")
-                : QStringLiteral("Přehrávání selhalo (návratový kód %1).").arg(code));
+            if (status == QProcess::NormalExit && code == 0) {
+                setFeedback(QStringLiteral("Sekvence dokončena nebo předána listeneru. Stav zařízení není ověřen readbackem."));
+            } else {
+                const QString details = QString::fromUtf8(playback_.readAllStandardError()).trimmed();
+                setFeedback(details.isEmpty()
+                    ? QStringLiteral("Přehrávání nebo návrat do Default selhal (kód %1).").arg(code)
+                    : QStringLiteral("Přehrávání nebo návrat do Default selhal: %1").arg(details.left(320)));
+            }
         });
     }
 
@@ -61,7 +66,7 @@ public:
     Q_INVOKABLE bool applyEssentials(bool enabled, const QString &backend)
     {
         if (enabled && backend != QLatin1String(KEncoderNotify::kWatcherBackend)) {
-            setFeedback(QStringLiteral("Vybraný backend bude dostupný až ve fázi 2."));
+            setFeedback(QStringLiteral("Listener KNotify scanner bude dostupný až ve fázi 2."));
             return false;
         }
         const QString exe = QStandardPaths::findExecutable(QStringLiteral("kencoder-notify"));
@@ -95,10 +100,14 @@ public:
     {
         const QString actualId = id.isEmpty()
             ? QUuid::createUuid().toString(QUuid::WithoutBraces) : id;
+        const bool isDefault = actualId == QLatin1String(KEncoderNotify::kDefaultPresetId);
         Configuration updated = config_;
+        const QJsonArray savedSteps = isDefault && !steps.isEmpty()
+            ? QJsonArray{QJsonValue::fromVariant(steps.first())}
+            : QJsonArray::fromVariantList(steps);
         QJsonObject preset{{QStringLiteral("id"), actualId},
-                           {QStringLiteral("name"), name.trimmed()},
-                           {QStringLiteral("steps"), QJsonArray::fromVariantList(steps)}};
+                           {QStringLiteral("name"), isDefault ? QStringLiteral("Default") : name.trimmed()},
+                           {QStringLiteral("steps"), savedSteps}};
         bool replaced = false;
         for (int i = 0; i < updated.presets.size(); ++i) {
             if (updated.presets.at(i).toObject().value(QStringLiteral("id")).toString() == actualId) {
@@ -121,6 +130,10 @@ public:
 
     Q_INVOKABLE bool deletePreset(const QString &id)
     {
+        if (id == QLatin1String(KEncoderNotify::kDefaultPresetId)) {
+            setFeedback(QStringLiteral("Preset Default nelze odstranit."));
+            return false;
+        }
         for (const auto &entry : config_.rules) {
             if (entry.toObject().value(QStringLiteral("preset_id")).toString() == id) {
                 setFeedback(QStringLiteral("Preset používá pravidlo. Nejdříve upravte nebo odstraňte pravidlo."));
@@ -179,6 +192,89 @@ public:
         Q_EMIT rulesChanged();
         setFeedback(QStringLiteral("Pravidlo uloženo."));
         return true;
+    }
+
+    Q_INVOKABLE bool moveRuleTo(const QString &id, int targetIndex)
+    {
+        Configuration updated = config_;
+        if (targetIndex < 0 || targetIndex >= updated.rules.size())
+            return false;
+        for (int i = 0; i < updated.rules.size(); ++i) {
+            if (updated.rules.at(i).toObject().value(QStringLiteral("id")).toString() != id)
+                continue;
+            if (i == targetIndex) return true;
+            const QJsonValue moved = updated.rules.at(i);
+            updated.rules.removeAt(i);
+            updated.rules.insert(targetIndex, moved);
+            QString error;
+            if (!KEncoderNotify::saveRules(updated, &error)) {
+                setFeedback(error);
+                return false;
+            }
+            config_ = updated;
+            Q_EMIT rulesChanged();
+            setFeedback(QStringLiteral("Pravidlo přesunuto na pozici %1.").arg(targetIndex + 1));
+            return true;
+        }
+        setFeedback(QStringLiteral("Pravidlo neexistuje."));
+        return false;
+    }
+
+    Q_INVOKABLE bool moveRule(const QString &id, int offset)
+    {
+        if (offset != -1 && offset != 1) {
+            setFeedback(QStringLiteral("Pravidlo lze přesunout jen o jednu pozici."));
+            return false;
+        }
+        Configuration updated = config_;
+        for (int i = 0; i < updated.rules.size(); ++i) {
+            if (updated.rules.at(i).toObject().value(QStringLiteral("id")).toString() != id)
+                continue;
+            const int target = i + offset;
+            if (target < 0 || target >= updated.rules.size())
+                return false;
+            const QJsonValue moved = updated.rules.at(i);
+            updated.rules.replace(i, updated.rules.at(target));
+            updated.rules.replace(target, moved);
+            QString error;
+            if (!KEncoderNotify::saveRules(updated, &error)) {
+                setFeedback(error);
+                return false;
+            }
+            config_ = updated;
+            Q_EMIT rulesChanged();
+            setFeedback(offset < 0 ? QStringLiteral("Pravidlo posunuto nahoru.")
+                                   : QStringLiteral("Pravidlo posunuto dolů."));
+            return true;
+        }
+        setFeedback(QStringLiteral("Pravidlo neexistuje."));
+        return false;
+    }
+
+    Q_INVOKABLE bool setRuleEnabled(const QString &id, bool enabled)
+    {
+        Configuration updated = config_;
+        for (int i = 0; i < updated.rules.size(); ++i) {
+            QJsonObject rule = updated.rules.at(i).toObject();
+            if (rule.value(QStringLiteral("id")).toString() != id)
+                continue;
+            if (rule.value(QStringLiteral("enabled")).toBool() == enabled)
+                return true;
+            rule.insert(QStringLiteral("enabled"), enabled);
+            updated.rules.replace(i, rule);
+            QString error;
+            if (!KEncoderNotify::saveRules(updated, &error)) {
+                setFeedback(error);
+                return false;
+            }
+            config_ = updated;
+            Q_EMIT rulesChanged();
+            setFeedback(enabled ? QStringLiteral("Pravidlo zapnuto.")
+                                : QStringLiteral("Pravidlo vypnuto."));
+            return true;
+        }
+        setFeedback(QStringLiteral("Pravidlo neexistuje."));
+        return false;
     }
 
     Q_INVOKABLE bool deleteRule(const QString &id)

@@ -10,6 +10,7 @@ namespace KEncoderNotify {
 
 inline constexpr const char *kWatcherBackend = "kde-watcher";
 inline constexpr const char *kFutureBackend = "knotify-scanner";
+inline constexpr const char *kDefaultPresetId = "default";
 
 struct Configuration {
     bool enabled = false; // Never listen by default.

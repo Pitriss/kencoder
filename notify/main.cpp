@@ -32,6 +32,8 @@ constexpr const char *kPlasmaService = "org.freedesktop.Notifications";
 constexpr const char *kPlasmaObject = "/org/freedesktop/Notifications";
 constexpr const char *kPlasmaInterface = "org.kde.NotificationManager";
 constexpr int kMaxPendingExecutions = 16; // Execution backpressure, NOT a preset/rule limit.
+// Refuse forwarding to an old daemon whose player can omit Default restoration.
+constexpr uint kPlaybackProtocolVersion = 2;
 
 QStringList commandArguments(const QJsonObject &step)
 {
@@ -64,6 +66,14 @@ bool ruleMatches(const QJsonObject &rule, const QString &app,
                     match.value(QStringLiteral("text_contains")));
 }
 
+QJsonObject defaultStep(const Configuration &config)
+{
+    const QJsonArray steps = KEncoderNotify::presetById(
+        config, QString::fromLatin1(KEncoderNotify::kDefaultPresetId))
+        .value(QStringLiteral("steps")).toArray();
+    return steps.isEmpty() ? QJsonObject{} : steps.first().toObject();
+}
+
 class Player final : public QObject
 {
     Q_OBJECT
@@ -94,9 +104,17 @@ public:
                 finish(false);
                 return;
             }
-            hold_.start(currentSteps_.at(stepIndex_).toObject().value(QStringLiteral("duration_ms")).toInt());
+            if (restoring_) {
+                // Default is a state, not a timed sequence.
+                ++stepIndex_;
+                advance();
+            } else {
+                hold_.start(currentSteps_.at(stepIndex_).toObject().value(QStringLiteral("duration_ms")).toInt());
+            }
         });
     }
+
+    void setRestoreStep(const QJsonObject &step) { restoreStep_ = step; }
 
     bool enqueue(const QJsonObject &preset)
     {
@@ -117,11 +135,30 @@ Q_SIGNALS:
 private:
     void startIfIdle()
     {
-        if (active_ || queued_.isEmpty()) {
-            if (idle()) Q_EMIT allIdle();
+        if (active_) return;
+        // Finish EVERY preset by restoring Default, even if another preset is queued.
+        // Never recursively restore Default after Default itself.
+        if (restorePending_ && !restoreStep_.isEmpty()) {
+            restorePending_ = false;
+            restoring_ = true;
+            currentSteps_ = QJsonArray{restoreStep_};
+            stepIndex_ = 0;
+            active_ = true;
+            advance();
             return;
         }
-        currentSteps_ = queued_.dequeue().value(QStringLiteral("steps")).toArray();
+        if (queued_.isEmpty()) {
+            Q_EMIT allIdle();
+            return;
+        }
+        const QJsonObject preset = queued_.dequeue();
+        const bool isDefault = preset.value(QStringLiteral("id")).toString() ==
+                               QLatin1String(KEncoderNotify::kDefaultPresetId);
+        sequenceFailed_ = false;
+        restoring_ = isDefault;
+        restorePending_ = !isDefault && !restoreStep_.isEmpty();
+        const QJsonArray steps = preset.value(QStringLiteral("steps")).toArray();
+        currentSteps_ = isDefault ? QJsonArray{steps.first()} : steps;
         stepIndex_ = 0;
         active_ = true;
         advance();
@@ -155,14 +192,28 @@ private:
     {
         if (!active_)
             return;
+        const bool wasRestoring = restoring_;
         active_ = false;
         hold_.stop();
         timeout_.stop();
         if (!success) {
-            qWarning() << "kencoder-notify: preset execution aborted; hardware state not verified";
-            queued_.clear(); // Do not flood a failing device with further commands.
+            sequenceFailed_ = true;
+            queued_.clear(); // Stop following effects, not the one-shot Default restore.
+            if (wasRestoring) {
+                restorePending_ = false; // Never retry a failed Default command.
+                qCritical() << "kencoder-notify: Default restoration failed; device state is unknown";
+            } else if (restorePending_ && !restoreStep_.isEmpty()) {
+                qWarning() << "kencoder-notify: effect failed; attempting Default restoration once";
+            } else {
+                qCritical() << "kencoder-notify: effect failed; no Default restoration available";
+            }
         }
-        Q_EMIT executionEnded(success);
+        restoring_ = false;
+        // Report completion only after the restore, so --play cannot hide errors.
+        if (wasRestoring || !restorePending_) {
+            Q_EMIT executionEnded(success && !sequenceFailed_);
+            sequenceFailed_ = false;
+        }
         QTimer::singleShot(0, this, [this] { startIfIdle(); });
     }
 
@@ -171,9 +222,13 @@ private:
     QTimer timeout_;
     QQueue<QJsonObject> queued_;
     QJsonArray currentSteps_;
+    QJsonObject restoreStep_;
     int stepIndex_ = 0;
     bool active_ = false;
     bool timedOut_ = false;
+    bool restoring_ = false;
+    bool restorePending_ = false;
+    bool sequenceFailed_ = false;
 };
 
 class Daemon;
@@ -203,6 +258,7 @@ public:
 public Q_SLOTS:
     Q_SCRIPTABLE bool Reload();
     Q_SCRIPTABLE bool PlayPreset(const QString &id);
+    Q_SCRIPTABLE uint PlaybackProtocolVersion();
 private:
     Daemon *owner_;
 };
@@ -272,11 +328,14 @@ public:
             unregisterWatcher();
             player_.clearQueued();
             config_ = Configuration{};
+            // An active sequence still needs its last validated Default state.
+            // Do not erase the recovery command during a malformed-file reload.
             qWarning().noquote() << "kencoder-notify: configuration invalid:" << error;
             refreshWatchPaths();
             return false;
         }
         config_ = fresh;
+        player_.setRestoreStep(defaultStep(config_));
         lastTriggered_.clear();
         if (!config_.enabled) {
             registrationRetry_.stop();
@@ -293,6 +352,22 @@ public:
     bool play(const QString &id)
     {
         const auto preset = KEncoderNotify::presetById(config_, id);
+        return player_.enqueue(preset);
+    }
+
+    bool playManual(const QString &id)
+    {
+        // --play forwarded over D-Bus can arrive before QFileSystemWatcher reloads.
+        // Read the saved preset and Default fresh without resetting notification cooldowns.
+        Configuration latest;
+        QString error;
+        if (!KEncoderNotify::load(&latest, &error)) {
+            qWarning().noquote() << "kencoder-notify: invalid manual playback configuration:" << error;
+            return false;
+        }
+        const auto preset = KEncoderNotify::presetById(latest, id);
+        if (preset.isEmpty()) return false;
+        player_.setRestoreStep(defaultStep(latest));
         return player_.enqueue(preset);
     }
 
@@ -313,8 +388,11 @@ public:
             if (lastTriggered_.contains(id) && now - lastTriggered_.value(id) < cooldown)
                 continue;
             const QString presetId = rule.value(QStringLiteral("preset_id")).toString();
-            if (play(presetId))
+            // Ordered priority: the first eligible matching rule wins.
+            if (play(presetId)) {
                 lastTriggered_.insert(id, now);
+                break;
+            }
         }
     }
 
@@ -389,7 +467,8 @@ void WatcherObject::Notify(uint id, const QString &app_name, uint replaces_id,
 }
 ControlObject::ControlObject(Daemon *owner) : QObject(owner), owner_(owner) {}
 bool ControlObject::Reload() { return owner_->reload(); }
-bool ControlObject::PlayPreset(const QString &id) { return owner_->play(id); }
+bool ControlObject::PlayPreset(const QString &id) { return owner_->playManual(id); }
+uint ControlObject::PlaybackProtocolVersion() { return kPlaybackProtocolVersion; }
 
 bool dryRun(const Configuration &config, const QString &id)
 {
@@ -397,13 +476,25 @@ bool dryRun(const Configuration &config, const QString &id)
     if (preset.isEmpty()) return false;
     QTextStream stream(stdout);
     stream << "DRY-RUN preset=" << id << '\n';
-    for (const auto &value : preset.value(QStringLiteral("steps")).toArray()) {
+    const bool isDefault = id == QLatin1String(KEncoderNotify::kDefaultPresetId);
+    const QJsonArray steps = preset.value(QStringLiteral("steps")).toArray();
+    const QJsonArray displayed = isDefault ? QJsonArray{steps.first()} : steps;
+    for (const auto &value : displayed) {
         const auto step = value.toObject();
         if (step.value(QStringLiteral("type")).toString() == QLatin1String("wait"))
             stream << "wait " << step.value(QStringLiteral("duration_ms")).toInt() << "ms\n";
+        else if (isDefault)
+            stream << "encoder " << commandArguments(step).join(QLatin1Char(' '))
+                   << "; no hold (Default)\n";
         else
             stream << "encoder " << commandArguments(step).join(QLatin1Char(' '))
                    << "; hold " << step.value(QStringLiteral("duration_ms")).toInt() << "ms\n";
+    }
+    if (!isDefault) {
+        const QJsonObject restore = defaultStep(config);
+        if (!restore.isEmpty())
+            stream << "restore-default: encoder "
+                   << commandArguments(restore).join(QLatin1Char(' ')) << "; no hold\n";
     }
     return true;
 }
@@ -441,6 +532,7 @@ int main(int argc, char **argv)
             if (!ruleMatches(rule, args.at(2), args.at(3), args.at(4))) continue;
             stream << "MATCH " << rule.value(QStringLiteral("id")).toString() << '\n';
             ++hits;
+            break; // --simulate follows the same first-match priority as the listener.
         }
         stream << "MATCHES " << hits << '\n';
         return 0;
@@ -463,6 +555,16 @@ int main(int argc, char **argv)
         if (bus.isConnected() && bus.interface()) {
             const QDBusReply<bool> present = bus.interface()->isServiceRegistered(QString::fromLatin1(kNotifyService));
             if (present.isValid() && present.value()) {
+                const auto versionRequest = QDBusMessage::createMethodCall(
+                    QString::fromLatin1(kNotifyService), QString::fromLatin1(kNotifyObject),
+                    QString::fromLatin1(kNotifyService), QStringLiteral("PlaybackProtocolVersion"));
+                const auto versionReply = bus.call(versionRequest, QDBus::Block, 1500);
+                if (versionReply.type() != QDBusMessage::ReplyMessage ||
+                    versionReply.arguments().isEmpty() ||
+                    versionReply.arguments().first().toUInt() < kPlaybackProtocolVersion) {
+                    qCritical() << "kencoder-notify: old/unresponsive daemon; restart it before playback";
+                    return 3; // Never forward to a player that may skip Default.
+                }
                 auto msg = QDBusMessage::createMethodCall(QString::fromLatin1(kNotifyService),
                                                            QString::fromLatin1(kNotifyObject),
                                                            QString::fromLatin1(kNotifyService),
@@ -474,6 +576,7 @@ int main(int argc, char **argv)
             }
         }
         Player player;
+        player.setRestoreStep(defaultStep(config));
         int result = 3;
         QObject::connect(&player, &Player::executionEnded, &app, [&](bool success) {
             result = success ? 0 : 3;
