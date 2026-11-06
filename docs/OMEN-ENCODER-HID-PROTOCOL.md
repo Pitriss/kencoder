@@ -44,7 +44,7 @@ Interpretation:
 - No explicit HID Report ID in the descriptor: the implicit report number is **0**.
 - The first bytes of vendor messages, such as `0x0c`, `0x03`, and `0x80`, are **vendor opcodes**, not HID Report IDs.
 
-The current CLI finds candidate `/dev/hidraw*` nodes using `HIDIOCGRAWINFO` and a 30-byte descriptor-size check. A hardened readback implementation should also validate USB interface `mi_02` and the **full descriptor bytes**, as the diagnostic helpers did.
+The legacy setting-command path finds candidate `/dev/hidraw*` nodes using `HIDIOCGRAWINFO` and a 30-byte descriptor-size check. The new `--status` path additionally validates the **full descriptor bytes** observed on `mi_02`. A separate explicit USB-interface-number check would provide further hardening; do not assume it is already implemented.
 
 ## 2. Framing and Linux transport
 
@@ -94,6 +94,19 @@ Formula: `raw = 3 - user_brightness`. The range is strictly 0 through 3.
 
 The prefix is `04 01 12 00`. The next **16 bytes**, offsets 4..19, are `ff`; offset 20 is `01`. This command enables the known full-key static lighting configuration. Related existing functions use the same prefix with a 17-byte mask (`light_keymask`) or set an individual bit (`light_single_key_by_id`). These mask variations were inspected in source but not separately exercised in the readback test matrix.
 
+#### Legacy single-key example: R (unverified key mapping)
+
+The earlier `encoder` project's `protocol_examples` file labels this 64-byte vendor payload as `Single Key R enable` (all omitted trailing bytes are zero):
+
+```text
+Offset:  00 01 02 03 04 05 06 07 ... 63
+Bytes:   04 01 12 00 00 00 08 00 ... 00
+```
+
+In the current `light_single_key_by_id()` implementation, the mask byte is at offset `4 + id / 8`, and the bit is `id % 8`. Offset 6 with bit 3 set therefore corresponds to **key ID 19**. The association **ID 19 = R** comes only from the legacy example: it was *not independently verified on the physical keyboard*. Preserve it as a historical clue, not as a validated key map.
+
+The same legacy file uses brightness labels inconsistent with the verified user-facing brightness scale, has reversed Wave direction labels, and omits a follow-up packet from its Right Wave example. It is not suitable as an authoritative collection of test vectors.
+
 ### 3.3 Animated modes
 
 ```text
@@ -107,7 +120,7 @@ Bytes:   03 00 24 00 MM 00 00 SS 00 DD 00 ... 00
 | `SS` at offset 7 | `00` Slow, `01` Medium, `02` Fast |
 | `DD` at offset 9 | `01` Breathing / Ripple, `02` Right Wave, `03` Left Wave |
 
-**Direction correction (user-observed on HP OMEN Encoder `03f0:3341`):** the original `encoder` CLI mapped direction byte `02` to `left_wave` and `03` to `right_wave`, but the physical animation traveled in the opposite direction. The table above reflects the reported physical behavior; the CLI must swap its two direction bytes to match the UI labels. The verified `80 01` readback identifies both as the Wave family (`0a`) and **cannot** independently confirm the direction.
+**Direction correction (user-observed on HP OMEN Encoder `03f0:3341`):** the original `encoder` CLI mapped direction byte `02` to `left_wave` and `03` to `right_wave`, but the physical animation traveled in the opposite direction. The current `kcm-develop` CLI has corrected this: `03` means `left_wave`, and `02` means `right_wave`. The verified `80 01` readback identifies both as the Wave family (`0a`) and **cannot** independently confirm the direction.
 
 After the animation command, the CLI sends a second 64-byte packet:
 
@@ -292,16 +305,22 @@ These are **event identifiers**, not bytes at known positions in the `80 01` rep
 - Preserve the existing udev ACL design; avoid root when normal user permissions work.
 - Do not record ordinary keypresses or data from the keyboard's typing interfaces.
 
-## 9. KEncoder readback CLI and remaining integration work
+## 9. KEncoder implementation and verification status (2026-11-06)
 
-**Implementation order agreed for the project:**
+The following features are implemented on branch `kcm-develop` (commit `84f43a9`):
 
-1. Stabilize the **optional Plasma 6 KCM draft** on branch `kcm-develop`. Keep it inside the existing `kencoder` package, with **no mandatory KF6 runtime dependency for the standalone Qt GUI**. Do not write device settings when opening the module.
-2. Publish this protocol analysis under `docs/`.
-3. The `encoder --status [--json]` implementation is introduced by the separate readback patch; it remains subject to real-device verification before release. It validates USB VID/PID and the exact 30-byte lighting descriptor, sends only `00 80 01 ...` (65 bytes), bounds the read to 2 seconds/8 replies, and rejects unsupported format selectors.
-4. Integrate the hardware-reported fields into both the existing Qt Widgets GUI and the KCM. Never mix cached, requested, or default values with actual hardware values. This integration is not yet implemented.
+- The CLI provides `encoder --status [--json]` as a separate **read-only device-state query**, without preceding brightness or effect-setting commands. It identifies the intended HP device using USB VID/PID and the complete 30-byte HID descriptor, sends the observed 65-byte `00 80 01 ...` query, uses a bounded 2-second read deadline (up to 8 replies), and rejects malformed or unsupported replies.
+- Both the standalone Qt6 Widgets GUI and the optional Plasma 6 KCM use the shared QtCore-only `gui/lighting_status.h` JSON parser. They request actual device state asynchronously at startup and after successful settings writes, without treating default, requested, or unknown values as hardware measurements.
+- The readback parser, CLI mock, headless GUI self-test, and GUI startup mock check passed. The startup mock verified that launching the GUI requests only `--status --json`, not a lighting-setting command.
+- The actual HP OMEN Encoder returned the following CLI output with exit status 0; the user also confirmed that the Qt GUI and KCM operate on the device:
 
-Example machine-readable result for Wave with brightness 2:
+```json
+{"source":"hardware","enabled":true,"brightness":1,"mode":"static","direction":null,"speed":null,"partial":true,"effect_code":1}
+```
+
+- Both Debian **amd64** packages (`encoder` and `kencoder`) passed a local packaging audit. The optional KCM plugin is included in `kencoder`; KF6 components remain in `Suggests`, and the standalone GUI has no direct KF6 shared-library dependencies. This is not a claim that an arm64 build was tested in that audit.
+
+Illustrative machine-readable result for **Wave** with brightness 2 (schema example, not an additional hardware test of the final CLI):
 
 ```json
 {
@@ -316,7 +335,7 @@ Example machine-readable result for Wave with brightness 2:
 }
 ```
 
-This is the JSON schema implemented by the accompanying readback CLI patch. The CLI patch is not yet validated against physical hardware. Wave direction and speed remain unavailable. Off must be represented as a distinct mode, while static brightness 0 is **not** Off. Invalid or unsupported reply formats should produce an explicit error/unknown state, never a fabricated static configuration. Startup readback must never apply settings or write flash.
+Wave direction and animation speed **remain unavailable** from the validated readback command. Off is a distinct mode; static brightness 0 is not Off. Unknown effect codes or malformed replies must produce an explicit error instead of a fabricated default. Startup readback is a HID query, not a lighting-setting operation; it must not write firmware or flash.
 
 ### Evidence locations
 
