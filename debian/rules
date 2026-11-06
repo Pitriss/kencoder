@@ -10,10 +10,13 @@ override_dh_auto_build:
 	$(MAKE) CC="$(CC)" CFLAGS="$(CFLAGS) $(CPPFLAGS)" LDFLAGS="$(LDFLAGS)"
 	cmake -S gui -B build/gui -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo -DKENCODER_REQUIRE_KCM=ON
 	cmake --build build/gui --parallel
+	cmake -S notify -B build/notify -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo
+	cmake --build build/notify --parallel
 
 override_dh_auto_install:
 	install -Dm755 build/cli/encoder debian/encoder/usr/bin/encoder
 	DESTDIR="$(CURDIR)/debian/kencoder" cmake --install build/gui --prefix /usr
+	DESTDIR="$(CURDIR)/debian/kencoder" cmake --install build/notify --prefix /usr
 
 # Sort after the upstream 97-omen_encoder.rules if it was manually installed.
 # This keeps the device from remaining world-writable.
@@ -27,4 +30,4 @@ override_dh_shlibdeps:
 
 override_dh_auto_clean:
 	$(MAKE) clean
-	rm -rf build/gui
+	rm -rf build/gui build/notify

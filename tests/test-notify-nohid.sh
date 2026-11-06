@@ -62,6 +62,17 @@ printf '==> Validate sample JSON\n'
 "$bin" --check | tee "$work/valid.log"
 grep -Fq 'presets=3; rules=1' "$work/valid.log"
 
+printf '==> Validate independently persisted notification mute (no HID)\n'
+cat > "$XDG_CONFIG_HOME/kencoder/notify-muted.json" <<'JSON'
+{"version":1,"muted":true}
+JSON
+"$bin" --check | tee "$work/muted.log"
+grep -Fq 'muted=1' "$work/muted.log"
+cat > "$XDG_CONFIG_HOME/kencoder/notify-muted.json" <<'JSON'
+{"version":1,"muted":false}
+JSON
+"$bin" --check | tee "$work/unmuted.log"
+grep -Fq 'muted=0' "$work/unmuted.log"
 printf '==> Match Teams notification without DBus or HID\n'
 "$bin" --simulate 'Microsoft Teams' 'Chat' 'Obsah XYZ' | tee "$work/matches.log"
 grep -Fxq 'MATCH teams-xyz' "$work/matches.log"
@@ -250,6 +261,14 @@ if grep -Fq 'MATCH specific' "$work/priority-generic.log"; then
     exit 1
 fi
 
+printf '==> Invalid mute configuration must fail closed (without HID)\n'
+printf '{broken' > "$XDG_CONFIG_HOME/kencoder/notify-muted.json"
+if "$bin" --check > "$work/bad-mute.log" 2>&1; then
+    echo 'FAIL: invalid mute JSON was accepted' >&2
+    exit 1
+fi
+rm -f "$XDG_CONFIG_HOME/kencoder/notify-muted.json"
+printf 'PASS: invalid mute JSON rejected\n'
 printf '==> Invalid backend must fail closed\n'
 sed -i 's/"enabled": false/"enabled": true/;s/"kde-watcher"/"knotify-scanner"/' \
   "$XDG_CONFIG_HOME/kencoder/notify-rules.json"
@@ -258,4 +277,6 @@ if "$bin" --check > "$work/rejected.log" 2>&1; then
   exit 1
 fi
 printf 'PASS: malformed or unsupported config rejected\n'
+printf '==> Verify session policy in a separate isolated environment\n'
+bash ./tests/test-session-policy-nohid.sh
 printf 'PASS: notify phase-1 build and tests\nKCM stage: %s\nLog: %s\n' "$PWD/.tmp/kencoder-notify-stage" "$log"

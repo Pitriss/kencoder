@@ -22,6 +22,10 @@ struct Configuration {
 QString configDirectory();
 QString presetsFile();
 QString rulesFile();
+QString muteFile();
+// Mute only automated lighting reactions, not KDE desktop notifications.
+bool loadMute(bool *muted, QString *error = nullptr);
+bool saveMute(bool muted, QString *error = nullptr);
 
 // Missing files mean default empty configuration. Malformed files fail closed.
 bool load(Configuration *out, QString *error);

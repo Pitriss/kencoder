@@ -14,6 +14,13 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QFont>
+#include <QGroupBox>
+#include <QSignalBlocker>
+#include <QDBusConnection>
+#include <QDBusConnectionInterface>
+#include <QDBusMessage>
+#include <QDBusReply>
+#include "../notify/config.h"
 #include <QFormLayout>
 #include <QHideEvent>
 #include <QHBoxLayout>
@@ -117,14 +124,27 @@ public:
         layout->addLayout(buttonRow);
 
         layout->addSpacing(12);
-        healthTitle_ = new QLabel(QStringLiteral("Stav"), content);
-        healthTitle_->setObjectName(QStringLiteral("runtimeStatusTitle"));
-        QFont titleFont = healthTitle_->font();
-        titleFont.setBold(true);
-        healthTitle_->setFont(titleFont);
-        layout->addWidget(healthTitle_);
-        layout->addSpacing(4);
+        muteNotify_ = new QCheckBox(QStringLiteral("Vypnout světelné notifikace KEncoder Notify"), content);
+        muteNotify_->setObjectName(QStringLiteral("muteNotifyReactions"));
+        muteNotify_->setToolTip(QStringLiteral("Ztlumí světelné reakce KEncoder Notify. "
+                                                "Nemění systémová oznámení Plasma ani pravidla."));
+        layout->addWidget(muteNotify_);
+        syncMuteStatus();
 
+        layout->addSpacing(12);
+        healthFrame_ = new QGroupBox(QStringLiteral("Stav"), content);
+        healthFrame_->setObjectName(QStringLiteral("runtimeStatusGroup"));
+        QFont titleFont = healthFrame_->font();
+        titleFont.setBold(true);
+        healthFrame_->setFont(titleFont);
+        // Align the bold title with the frame's top edge, as in the Plasma KCM.
+        // Use the current palette rather than hard-coding a light background.
+        healthFrame_->setStyleSheet(QStringLiteral(
+            "QGroupBox { margin-top: 1ex; }"
+            "QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top left;"
+            " left: 12px; padding: 0 5px; background-color: palette(window); }"));
+        auto *healthLayout = new QVBoxLayout(healthFrame_);
+        healthLayout->setSpacing(8);
         auto *healthRow = new QHBoxLayout();
         healthLed_ = new QLabel(content);
         healthLed_->setObjectName(QStringLiteral("healthLed"));
@@ -134,6 +154,7 @@ public:
         healthText_->setWordWrap(true);
         healthText_->setAlignment(Qt::AlignLeft | Qt::AlignTop);
         healthText_->setTextInteractionFlags(Qt::TextSelectableByMouse);
+        healthText_->setFont(content->font());
 
         // Center the LED on the FIRST text line, not on the whole wrapped label.
         // The top spacer follows the selected KDE font's line metrics.
@@ -146,12 +167,12 @@ public:
         ledColumn->addStretch();
         healthRow->addLayout(ledColumn);
         healthRow->addWidget(healthText_, 1);
-        layout->addLayout(healthRow);
-        hardwareState_ = new QLabel(QStringLiteral("Podsvícení: stav neznámý."), content);
-        hardwareState_->setObjectName(QStringLiteral("lightingReadbackStatus"));
-        hardwareState_->setWordWrap(true);
-        hardwareState_->setTextInteractionFlags(Qt::TextSelectableByMouse);
-        layout->addWidget(hardwareState_);
+        healthLayout->addLayout(healthRow);
+        layout->addWidget(healthFrame_);
+        auto *openSettings = new QPushButton(QStringLiteral("Otevřít ovládací panel"), content);
+        openSettings->setObjectName(QStringLiteral("openControlPanel"));
+        layout->addWidget(openSettings);
+        connect(openSettings, &QPushButton::clicked, this, [this] { openControlPanel(); });
 
         // Keep all the free space inside the content area, above the status field.
         layout->addStretch(1);
@@ -161,8 +182,8 @@ public:
         statusField_->setAccessibleName(QStringLiteral("Stav zařízení a zprávy"));
         statusField_->setReadOnly(true);
         statusField_->setFrame(true); // Native KDE sunken text field.
-        statusField_->setText(deviceText_);
-        statusField_->setToolTip(deviceText_);
+        statusField_->setText(lightingStateText_);
+        statusField_->setToolTip(deviceText_ + QLatin1Char('\n') + lightingStateText_);
         outerLayout->addWidget(statusField_);
 
         statusReset_.setSingleShot(true);
@@ -197,6 +218,64 @@ public:
                 [this](int level) { speedValue_->setText(speedLabel(level)); });
         connect(speed_, &QSlider::valueChanged, this, [this] {
             if (!syncingState_) editorTouched_ = true;
+        });
+        connect(muteNotify_, &QCheckBox::toggled, this, [this](bool checked) {
+            bool previous = false;
+            QString error;
+            if (!KEncoderNotify::loadMute(&previous, &error)) {
+                QSignalBlocker blocker(muteNotify_);
+                muteNotify_->setChecked(false);
+                showStatus(QStringLiteral("Nelze načíst ztlumení: %1").arg(error), 8000);
+                return;
+            }
+            const auto bus = QDBusConnection::sessionBus();
+            bool running = false;
+            if (bus.isConnected() && bus.interface()) {
+                const QDBusReply<bool> present = bus.interface()->isServiceRegistered(
+                    QStringLiteral("org.kencoder.Notify1"));
+                running = present.isValid() && present.value();
+            }
+            auto callDaemon = [&](const QString &method) {
+                const QDBusMessage msg = QDBusMessage::createMethodCall(
+                    QStringLiteral("org.kencoder.Notify1"), QStringLiteral("/org/kencoder/Notify1"),
+                    QStringLiteral("org.kencoder.Notify1"), method);
+                return bus.call(msg, QDBus::Block, 700);
+            };
+            if (running) {
+                const auto version = callDaemon(QStringLiteral("MuteProtocolVersion"));
+                if (version.type() != QDBusMessage::ReplyMessage || version.arguments().isEmpty() ||
+                    version.arguments().first().toUInt() != 1) {
+                    QSignalBlocker blocker(muteNotify_);
+                    muteNotify_->setChecked(previous);
+                    showStatus(QStringLiteral("Běží starý kencoder-notify. Nejdřív jej restartujte."), 8000);
+                    return;
+                }
+            }
+            if (!KEncoderNotify::saveMute(checked, &error)) {
+                QSignalBlocker blocker(muteNotify_);
+                muteNotify_->setChecked(previous);
+                showStatus(QStringLiteral("Ztlumení nelze uložit: %1").arg(error), 8000);
+                return;
+            }
+            if (running) {
+                const auto reloaded = callDaemon(QStringLiteral("Reload"));
+                const auto actual = callDaemon(QStringLiteral("NotificationsMuted"));
+                const bool accepted = reloaded.type() == QDBusMessage::ReplyMessage &&
+                    !reloaded.arguments().isEmpty() && reloaded.arguments().first().toBool() &&
+                    actual.type() == QDBusMessage::ReplyMessage &&
+                    !actual.arguments().isEmpty() && actual.arguments().first().toBool() == checked;
+                if (!accepted) {
+                    QString revertError;
+                    KEncoderNotify::saveMute(previous, &revertError);
+                    callDaemon(QStringLiteral("Reload"));
+                    QSignalBlocker blocker(muteNotify_);
+                    muteNotify_->setChecked(previous);
+                    showStatus(QStringLiteral("Služba nepotvrdila ztlumení; změna byla vrácena."), 8000);
+                    return;
+                }
+            }
+            showStatus(checked ? QStringLiteral("Světelné notifikace jsou ztlumené.")
+                               : QStringLiteral("Ztlumení zrušeno; platí nastavení listeneru."), 6000);
         });
         connect(closeToTray_, &QCheckBox::toggled, this, [this](bool checked) {
             QSettings().setValue(QStringLiteral("ui/closeToTray"), checked);
@@ -281,7 +360,7 @@ public:
             if (error != QProcess::FailedToStart)
                 return; // Other errors are handled by finished().
             readTimeout_.stop();
-            hardwareState_->setText(QStringLiteral("Podsvícení: příkaz encoder nelze spustit."));
+            setLightingStateText(QStringLiteral("Podsvícení: příkaz encoder nelze spustit."));
             setBusy(false);
         });
         connect(&readProcess_, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
@@ -290,7 +369,7 @@ public:
             EncoderLightingStatus state;
             if (!readTimedOut_ && exitStatus == QProcess::NormalExit && exitCode == 0 &&
                 parseEncoderLightingStatus(readProcess_.readAllStandardOutput(), &state)) {
-                hardwareState_->setText(state.description());
+                setLightingStateText(state.description());
                 if (!editorTouched_) {
                     syncingState_ = true;
                     brightness_->setValue(state.brightness);
@@ -303,7 +382,7 @@ public:
                     syncingState_ = false;
                 }
             } else {
-                hardwareState_->setText(readTimedOut_
+                setLightingStateText(readTimedOut_
                     ? QStringLiteral("Podsvícení: čtení překročilo časový limit.")
                     : QStringLiteral("Podsvícení: stav nelze načíst (encoder --status --json)."));
             }
@@ -318,6 +397,7 @@ public:
             healthPoll_.setInterval(5000);
             connect(&healthPoll_, &QTimer::timeout, this, [this] { refreshHealth(); });
             healthPoll_.start();
+            connect(&healthPoll_, &QTimer::timeout, this, [this] { syncMuteStatus(); });
         } else {
             setHealth(HealthLevel::Warning, QStringLiteral("Diagnostika vynechána při self-testu."));
         }
@@ -334,24 +414,30 @@ public:
         if (!require(!windowTitle().isEmpty(), "window title") ||
             !require(!windowIcon().isNull(), "embedded window icon") ||
             !require(buttons_.size() == 2, "button count") ||
+            !require(healthFrame_ && healthFrame_->title() == QLatin1String("Stav"),
+                     "status group title") ||
+            !require(muteNotify_ && muteNotify_->objectName() == QLatin1String("muteNotifyReactions"),
+                     "notification mute checkbox") ||
+            !require(findChild<QPushButton *>(QStringLiteral("openControlPanel")) != nullptr,
+                     "control panel button") ||
             !require(animation_->currentData().toString() == QLatin1String("static"),
                      "default animation") ||
             !require(brightness_->value() == 1, "default brightness") ||
             !require(speed_->value() == 1, "default speed") ||
             !require(!speed_->isEnabled() && !speedValue_->isEnabled(),
                      "static mode must disable speed") ||
-            !require(healthLed_ && healthText_ && healthTitle_ && statusField_,
+            !require(healthLed_ && healthText_ && healthFrame_ && statusField_,
                      "status widgets") ||
             !require(statusField_ && statusField_->isReadOnly(), "read-only status field") ||
             !require(trayToggleAction_ != nullptr, "system tray action") ||
             !require(trayToggleAction_ &&
                      trayToggleAction_->text() == QLatin1String("Zobrazit"),
                      "initial tray action") ||
-            !require(healthTitle_ && healthTitle_->text() == QLatin1String("Stav"),
+            !require(healthFrame_ && healthFrame_->title() == QLatin1String("Stav"),
                      "status title") ||
             !require(statusField_ &&
-                     statusField_->text() == QLatin1String("HP OMEN Encoder (03f0:3341)"),
-                     "initial device status"))
+                     statusField_->text() == lightingStateText_,
+                     "initial lighting state in status bar"))
             return false;
         // Status field is the last item, outside the padded content layout.
         auto *outer = qobject_cast<QVBoxLayout *>(layout());
@@ -385,15 +471,21 @@ public:
         if (!require(!speed_->isEnabled() && !speedValue_->isEnabled() &&
                      !speedCaption_->isEnabled(), "static mode must disable speed"))
             return false;
+        setLightingStateText(QStringLiteral("Z klávesnice: Statické, jas 1. Rychlost nezjištěna."));
+        if (!require(statusField_->text() == lightingStateText_,
+                     "hardware readback in bottom status field"))
+            return false;
         showStatus(QStringLiteral("Test zprávy"), 5000);
+        setLightingStateText(QStringLiteral("Z klávesnice: Statické, jas 2. Rychlost nezjištěna."));
         if (!require(statusField_->text() == QStringLiteral("Test zprávy"),
-                     "temporary status text"))
+                     "temporary status overrides hardware state"))
             return false;
         if (!require(statusReset_.isActive(), "temporary status timer active"))
             return false;
         statusReset_.stop();
         restoreDeviceStatus();
-        return require(statusField_->text() == deviceText_, "restore device status");
+        return require(statusField_->text() == lightingStateText_,
+                       "restore latest hardware readback");
     }
 
 protected:
@@ -447,6 +539,33 @@ private:
         return HealthLevel::Good;
     }
 
+    void syncMuteStatus()
+    {
+        bool muted = false;
+        QString error;
+        if (!KEncoderNotify::loadMute(&muted, &error)) return;
+        QSignalBlocker blocker(muteNotify_);
+        muteNotify_->setChecked(muted);
+    }
+
+    void openControlPanel()
+    {
+        const QStringList programs{QStringLiteral("systemsettings"),
+                                   QStringLiteral("systemsettings6"),
+                                   QStringLiteral("kcmshell6")};
+        for (const QString &program : programs) {
+            const QString executable = QStandardPaths::findExecutable(program);
+            if (!executable.isEmpty() &&
+                QProcess::startDetached(executable, {QStringLiteral("kcm_kencoder")})) {
+                showStatus(program == QLatin1String("kcmshell6")
+                    ? QStringLiteral("Otevírám samostatné nastavení KEncoder.")
+                    : QStringLiteral("Otevírám Nastavení systému: KEncoder."), 6000);
+                return;
+            }
+        }
+        showStatus(QStringLiteral("System Settings ani kcmshell6 nejsou dostupné."), 8000);
+    }
+
     static QString speedLabel(int index)
     {
         switch (index) {
@@ -472,11 +591,11 @@ private:
             return;
         const QString cli = QStandardPaths::findExecutable(QStringLiteral("encoder"));
         if (cli.isEmpty()) {
-            hardwareState_->setText(QStringLiteral("Podsvícení: příkaz encoder není dostupný."));
+            setLightingStateText(QStringLiteral("Podsvícení: příkaz encoder není dostupný."));
             return;
         }
         readTimedOut_ = false;
-        hardwareState_->setText(QStringLiteral("Zjišťuji skutečný stav klávesnice…"));
+        setLightingStateText(QStringLiteral("Zjišťuji skutečný stav klávesnice…"));
         setBusy(true);
         readProcess_.start(cli, {QStringLiteral("--status"), QStringLiteral("--json")});
         readTimeout_.start(4000);
@@ -634,8 +753,16 @@ private:
 
     void restoreDeviceStatus()
     {
-        statusField_->setText(deviceText_);
-        statusField_->setToolTip(deviceText_);
+        statusField_->setText(lightingStateText_);
+        statusField_->setToolTip(deviceText_ + QLatin1Char('\n') + lightingStateText_);
+    }
+
+    void setLightingStateText(const QString &text)
+    {
+        lightingStateText_ = text;
+        // A command confirmation/error takes precedence until its timer ends.
+        if (!statusReset_.isActive())
+            restoreDeviceStatus();
     }
 
     void setHealth(HealthLevel level, const QString &message)
@@ -726,12 +853,13 @@ private:
     QLabel *brightnessValue_ = nullptr;
     QLabel *speedValue_ = nullptr;
     QLabel *speedCaption_ = nullptr;
-    QLabel *healthTitle_ = nullptr;
+    QGroupBox *healthFrame_ = nullptr;
+    QCheckBox *muteNotify_ = nullptr;
     QLabel *healthLed_ = nullptr;
     QLabel *healthText_ = nullptr;
-    QLabel *hardwareState_ = nullptr;
     QLineEdit *statusField_ = nullptr;
     QString deviceText_;
+    QString lightingStateText_ = QStringLiteral("Podsvícení: stav neznámý.");
     QTimer statusReset_;
     QList<QPushButton *> buttons_;
     QProcess process_;

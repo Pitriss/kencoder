@@ -120,6 +120,33 @@ QString configDirectory()
 
 QString presetsFile() { return configDirectory() + QStringLiteral("/notify-presets.json"); }
 QString rulesFile() { return configDirectory() + QStringLiteral("/notify-rules.json"); }
+QString muteFile() { return configDirectory() + QStringLiteral("/notify-muted.json"); }
+
+bool loadMute(bool *muted, QString *error)
+{
+    if (!muted)
+        return fail(error, QStringLiteral("Chybí cíl pro stav ztlumení."));
+    QFile file(muteFile());
+    if (!file.exists()) {
+        *muted = false;
+        return true;
+    }
+    if (!file.open(QIODevice::ReadOnly))
+        return fail(error, QStringLiteral("Nelze načíst stav ztlumení notifikací."));
+    const QJsonDocument document = QJsonDocument::fromJson(file.readAll());
+    if (!document.isObject() ||
+        document.object().value(QStringLiteral("version")).toInt(-1) != 1 ||
+        !document.object().value(QStringLiteral("muted")).isBool())
+        return fail(error, QStringLiteral("Neplatný formát notify-muted.json."));
+    *muted = document.object().value(QStringLiteral("muted")).toBool();
+    return true;
+}
+
+bool saveMute(bool muted, QString *error)
+{
+    return saveFile(muteFile(), {{QStringLiteral("version"), 1},
+                                 {QStringLiteral("muted"), muted}}, error);
+}
 
 bool load(Configuration *out, QString *error)
 {

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=KEncoder Session Service
+Name[cs]=Služba relace KEncoder
+Comment=Keyboard lighting session and notification policies
+Comment[cs]=Pravidla podsvícení při zamčení, vypnutí obrazovky a notifikacích
+Exec=kencoder-notify --daemon
+TryExec=kencoder-notify
+OnlyShowIn=KDE;
+NoDisplay=true
+Terminal=false

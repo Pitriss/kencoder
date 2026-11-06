@@ -9,8 +9,15 @@ import org.kde.kcmutils as KCM
 KCM.SimpleKCM {
     id: root
     implicitWidth: Kirigami.Units.gridUnit * 34
-    implicitHeight: Kirigami.Units.gridUnit * 31
+    implicitHeight: Kirigami.Units.gridUnit * 47
     property bool draftModified: false
+    property string transientStatus: ""
+    Timer {
+        id: messageTimer
+        interval: 6000
+        repeat: false
+        onTriggered: root.transientStatus = ""
+    }
 
     function syncFromHardware() {
         if (draftModified || !kcm.reportedAvailable)
@@ -30,6 +37,10 @@ KCM.SimpleKCM {
     Connections {
         target: kcm
         function onLightingStatusChanged() { root.syncFromHardware() }
+        function onFeedbackChanged() {
+            root.transientStatus = kcm.feedback
+            messageTimer.restart()
+        }
     }
     Component.onCompleted: syncFromHardware()
 
@@ -119,28 +130,166 @@ KCM.SimpleKCM {
                     kcm.turnOff()
                 }
             }
+            Controls.Button {
+                text: "Nastavit Default"
+                enabled: !kcm.busy
+                Controls.ToolTip.visible: hovered
+                Controls.ToolTip.text: "Použije první krok uloženého presetu Default."
+                onClicked: {
+                    root.draftModified = false
+                    kcm.applyDefault()
+                }
+            }
         }
 
-        Controls.Button {
-            text: "Načíst stav"
-            enabled: !kcm.busy
-            onClicked: kcm.refreshLightingStatus()
-        }
-        Controls.Label {
+        RowLayout {
             Layout.fillWidth: true
-            text: kcm.lightingStatus
-            wrapMode: Text.WordWrap
+            Controls.Button {
+                text: "Načíst stav"
+                enabled: !kcm.busy
+                Controls.ToolTip.visible: hovered
+                Controls.ToolTip.text: "Čtení přes: " + (kcm.encoderPath.length ? kcm.encoderPath : "encoder není v PATH")
+                onClicked: kcm.refreshLightingStatus()
+            }
+            Controls.Button {
+                text: "Spustit KEncoder"
+                onClicked: kcm.launchGui()
+            }
         }
-        Controls.Label {
+
+        Controls.GroupBox {
+            id: automaticBehavior
+            title: "Automatické chování"
             Layout.fillWidth: true
-            text: "Stav:"
-            font.bold: true
+            Layout.topMargin: Kirigami.Units.largeSpacing * 2
+            Layout.bottomMargin: Kirigami.Units.largeSpacing * 2
+            // Preserve the native Plasma frame. Only replace its title item.
+            // Place the text center on the theme-drawn top border.
+            label: Controls.Label {
+                text: automaticBehavior.title
+                font.bold: true
+                x: Kirigami.Units.gridUnit
+                y: automaticBehavior.background
+                    ? automaticBehavior.background.y - height / 2
+                    : -height / 2
+                z: 1
+                leftPadding: Kirigami.Units.smallSpacing
+                rightPadding: Kirigami.Units.smallSpacing
+                background: Rectangle {
+                    color: Kirigami.Theme.backgroundColor
+                }
+            }
+            contentItem: ColumnLayout {
+                spacing: Kirigami.Units.smallSpacing
+                Controls.CheckBox {
+                    id: offOnLock
+                    text: "Zhasnout klávesnici při zamčení počítače"
+                    checked: kcm.offOnLock
+                    onClicked: kcm.saveSessionPolicy(checked, offOnScreenOff.checked,
+                                                     notifyInactive.checked)
+                }
+                Controls.CheckBox {
+                    id: offOnScreenOff
+                    text: "Zhasnout klávesnici při spořiči obrazovky"
+                    checked: kcm.offOnScreenOff
+                    Controls.ToolTip.visible: hovered
+                    Controls.ToolTip.text: "V Plasma 6 se sleduje vypnutí monitorů (DPMS)."
+                    onClicked: kcm.saveSessionPolicy(offOnLock.checked, checked,
+                                                     notifyInactive.checked)
+                }
+                Controls.CheckBox {
+                    id: notifyInactive
+                    text: "Povolit KEncoder Notify při zamčené nebo zhasnuté obrazovce"
+                    checked: kcm.notifyWhenInactive
+                    Controls.ToolTip.visible: hovered
+                    Controls.ToolTip.text: "Při skutečném uspání počítače se notifikace nevykonávají."
+                    onClicked: kcm.saveSessionPolicy(offOnLock.checked, offOnScreenOff.checked,
+                                                     checked)
+                }
+            }
         }
-        Controls.Label {
+        Controls.GroupBox {
+            id: readinessBox
+            title: "Připravenost"
             Layout.fillWidth: true
-            text: kcm.feedback
-            wrapMode: Text.WordWrap
+            Layout.topMargin: Kirigami.Units.largeSpacing
+            label: Controls.Label {
+                text: readinessBox.title
+                font.bold: true
+                x: Kirigami.Units.gridUnit
+                y: readinessBox.background
+                    ? readinessBox.background.y - height / 2 : -height / 2
+                z: 1
+                leftPadding: Kirigami.Units.smallSpacing
+                rightPadding: Kirigami.Units.smallSpacing
+                background: Rectangle { color: Kirigami.Theme.backgroundColor }
+            }
+            contentItem: ColumnLayout {
+                spacing: Kirigami.Units.smallSpacing * 2
+                RowLayout {
+                    spacing: Kirigami.Units.smallSpacing * 2
+                    Rectangle {
+                        Layout.preferredWidth: 12; Layout.preferredHeight: 12
+                        radius: 6
+                        color: kcm.keyboardReadiness === 2 ? "#209c60" :
+                               kcm.keyboardReadiness === 1 ? "#d68b16" : "#d63c43"
+                        Accessible.name: kcm.keyboardReadinessText
+                    }
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        text: "Klávesnice: " + kcm.keyboardReadinessText
+                        wrapMode: Text.WordWrap
+                    }
+                }
+                RowLayout {
+                    spacing: Kirigami.Units.smallSpacing * 2
+                    Rectangle {
+                        Layout.preferredWidth: 12; Layout.preferredHeight: 12
+                        radius: 6
+                        color: kcm.notifyReadiness === 2 ? "#209c60" :
+                               kcm.notifyReadiness === 1 ? "#d68b16" : "#d63c43"
+                        Accessible.name: kcm.notifyReadinessText
+                    }
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        text: "KEncoder Notify: " + kcm.notifyReadinessText
+                        wrapMode: Text.WordWrap
+                    }
+                }
+                RowLayout {
+                    spacing: Kirigami.Units.smallSpacing * 2
+                    Rectangle {
+                        Layout.preferredWidth: 12; Layout.preferredHeight: 12
+                        radius: 6
+                        color: kcm.listenerReadiness === 2 ? "#209c60" :
+                               kcm.listenerReadiness === 1 ? "#d68b16" : "#d63c43"
+                        Accessible.name: kcm.listenerReadinessText
+                    }
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        text: "Listener: " + kcm.listenerReadinessText
+                        wrapMode: Text.WordWrap
+                    }
+                }
+            }
         }
         Item { Layout.fillHeight: true }
+        // Same theme-native feedback frame as KEncoder Notify.
+        // Temporary messages take priority over the idle readback state.
+        Controls.Frame {
+            Layout.fillWidth: true
+            Layout.topMargin: Kirigami.Units.smallSpacing * 2
+            Layout.minimumHeight: Kirigami.Units.gridUnit * 3
+            padding: Kirigami.Units.smallSpacing
+            Controls.Label {
+                anchors.fill: parent
+                text: root.transientStatus.length > 0 ? root.transientStatus : kcm.lightingStatus
+                font.bold: root.transientStatus.length === 0
+                wrapMode: Text.WordWrap
+                maximumLineCount: 3
+                elide: Text.ElideRight
+                verticalAlignment: Text.AlignVCenter
+            }
+        }
     }
 }

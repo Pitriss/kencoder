@@ -2,6 +2,7 @@
 // Copyright 2026 Pitriss
 // Per-user KDE notification watcher and best-effort lighting-sequence player.
 #include "config.h"
+#include "session_policy.h"
 
 #include <QCoreApplication>
 #include <QDBusConnection>
@@ -17,6 +18,7 @@
 #include <QJsonObject>
 #include <QProcess>
 #include <QQueue>
+#include <QRegularExpression>
 #include <QStandardPaths>
 #include <QStringList>
 #include <QTextStream>
@@ -66,6 +68,12 @@ bool ruleMatches(const QJsonObject &rule, const QString &app,
                     match.value(QStringLiteral("text_contains")));
 }
 
+QJsonObject offStep()
+{
+    return {{QStringLiteral("type"), QStringLiteral("off")},
+            {QStringLiteral("duration_ms"), 50}};
+}
+
 QJsonObject defaultStep(const Configuration &config)
 {
     const QJsonArray steps = KEncoderNotify::presetById(
@@ -92,13 +100,20 @@ public:
         });
         connect(&process_, &QProcess::errorOccurred, this, [this](QProcess::ProcessError error) {
             if (active_ && error == QProcess::FailedToStart)
-                finish(false);
+                finish(false); // finish() preserves a pending lock/DPMS override.
         });
         connect(&process_, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                 this, [this](int code, QProcess::ExitStatus status) {
             if (!active_)
                 return;
             timeout_.stop();
+            if (overridePending_) {
+                active_ = false;
+                hold_.stop();
+                restoring_ = false;
+                QTimer::singleShot(0, this, [this] { startIfIdle(); });
+                return;
+            }
             if (timedOut_ || status != QProcess::NormalExit || code != 0 ||
                 process_.readAllStandardOutput().contains("Command failed")) {
                 finish(false);
@@ -128,6 +143,25 @@ public:
     bool idle() const { return !active_ && queued_.isEmpty(); }
     void clearQueued() { queued_.clear(); }
 
+    // A lock/DPMS transition supersedes the remaining animation and its restore.
+    // Let any CLI already writing to HID finish before dispatching the new state.
+    void forceState(const QJsonObject &step)
+    {
+        if (step.isEmpty()) return;
+        queued_.clear();
+        restorePending_ = false;
+        sequenceFailed_ = false;
+        overrideStep_ = step;
+        overridePending_ = true;
+        if (!active_ || process_.state() == QProcess::NotRunning) {
+            active_ = false;
+            restoring_ = false;
+            hold_.stop();
+            timeout_.stop();
+            QTimer::singleShot(0, this, [this] { startIfIdle(); });
+        }
+    }
+
 Q_SIGNALS:
     void executionEnded(bool success);
     void allIdle();
@@ -136,6 +170,16 @@ private:
     void startIfIdle()
     {
         if (active_) return;
+        if (overridePending_) {
+            overridePending_ = false;
+            restoring_ = true;
+            restorePending_ = false;
+            currentSteps_ = QJsonArray{overrideStep_};
+            stepIndex_ = 0;
+            active_ = true;
+            advance();
+            return;
+        }
         // Finish EVERY preset by restoring Default, even if another preset is queued.
         // Never recursively restore Default after Default itself.
         if (restorePending_ && !restoreStep_.isEmpty()) {
@@ -196,6 +240,11 @@ private:
         active_ = false;
         hold_.stop();
         timeout_.stop();
+        if (overridePending_) {
+            restoring_ = false;
+            QTimer::singleShot(0, this, [this] { startIfIdle(); });
+            return;
+        }
         if (!success) {
             sequenceFailed_ = true;
             queued_.clear(); // Stop following effects, not the one-shot Default restore.
@@ -223,6 +272,8 @@ private:
     QQueue<QJsonObject> queued_;
     QJsonArray currentSteps_;
     QJsonObject restoreStep_;
+    QJsonObject overrideStep_;
+    bool overridePending_ = false;
     int stepIndex_ = 0;
     bool active_ = false;
     bool timedOut_ = false;
@@ -259,6 +310,10 @@ public Q_SLOTS:
     Q_SCRIPTABLE bool Reload();
     Q_SCRIPTABLE bool PlayPreset(const QString &id);
     Q_SCRIPTABLE uint PlaybackProtocolVersion();
+    Q_SCRIPTABLE uint SessionPolicyProtocolVersion();
+    Q_SCRIPTABLE QString ListenerStatus();
+    Q_SCRIPTABLE uint MuteProtocolVersion();
+    Q_SCRIPTABLE bool NotificationsMuted();
 private:
     Daemon *owner_;
 };
@@ -271,12 +326,52 @@ public:
         : QObject(parent), watcherObject_(this), controlObject_(this),
           plasmaWatcher_(QString::fromLatin1(kPlasmaService),
                          QDBusConnection::sessionBus(),
+                         QDBusServiceWatcher::WatchForOwnerChange, this),
+          screenSaverWatcher_(QStringLiteral("org.freedesktop.ScreenSaver"),
+                         QDBusConnection::sessionBus(),
                          QDBusServiceWatcher::WatchForOwnerChange, this)
     {
         clock_.start();
         reloadTimer_.setSingleShot(true);
         reloadTimer_.setInterval(150);
         registrationRetry_.setInterval(15000);
+        dpmsTimer_.setInterval(3000);
+        QDBusConnection::sessionBus().connect(
+            QStringLiteral("org.freedesktop.ScreenSaver"),
+            QStringLiteral("/ScreenSaver"), QStringLiteral("org.freedesktop.ScreenSaver"),
+            QStringLiteral("ActiveChanged"), this, SLOT(onLockChanged(bool)));
+        connect(&screenSaverWatcher_, &QDBusServiceWatcher::serviceOwnerChanged, this,
+                [this](const QString &, const QString &, const QString &) {
+            refreshLockState();
+            updateSessionGuard();
+        });
+        connect(&dpmsTimer_, &QTimer::timeout, this, [this] { checkDpms(); });
+        connect(&dpmsCheck_, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                this, [this](int code, QProcess::ExitStatus status) {
+            if (code != 0 || status != QProcess::NormalExit) return;
+            const QString output = QString::fromLocal8Bit(dpmsCheck_.readAllStandardOutput());
+            bool parsed = false;
+            bool off = false;
+            if (qEnvironmentVariable("XDG_SESSION_TYPE") == QLatin1String("wayland")) {
+                const QRegularExpression pattern(
+                    QStringLiteral("dpms mode for screen [^\n]+: (on|off)"),
+                    QRegularExpression::CaseInsensitiveOption);
+                auto it = pattern.globalMatch(output);
+                parsed = it.hasNext();
+                off = parsed;
+                while (it.hasNext())
+                    if (it.next().captured(1).compare(QLatin1String("off"), Qt::CaseInsensitive) != 0)
+                        off = false; // Only blank when ALL screens are off.
+            } else {
+                parsed = output.contains(QStringLiteral("Monitor is On"), Qt::CaseInsensitive) ||
+                         output.contains(QStringLiteral("Monitor is Off"), Qt::CaseInsensitive);
+                off = output.contains(QStringLiteral("Monitor is Off"), Qt::CaseInsensitive);
+            }
+            if (parsed && off != screenOff_) {
+                screenOff_ = off;
+                updateSessionGuard();
+            }
+        });
         connect(&reloadTimer_, &QTimer::timeout, this, [this] { reload(); });
         connect(&registrationRetry_, &QTimer::timeout, this, [this] {
             if (config_.enabled && !registered_) registerWatcher();
@@ -308,6 +403,7 @@ public:
             bus.unregisterService(QString::fromLatin1(kNotifyService));
             return false;
         }
+        refreshLockState();
         const bool ok = reload();
         refreshWatchPaths();
         return ok;
@@ -334,8 +430,30 @@ public:
             refreshWatchPaths();
             return false;
         }
+        KEncoderSession::Policy policy;
+        if (!KEncoderSession::loadPolicy(&policy, &error)) {
+            qWarning().noquote() << "kencoder-notify: invalid session policy:" << error;
+            registrationRetry_.stop();
+            unregisterWatcher();
+            player_.clearQueued();
+            config_.enabled = false;
+            return false;
+        }
+        // A damaged mute file must fail closed for notification reactions.
+        bool requestedMute = false;
+        QString muteError;
+        if (!KEncoderNotify::loadMute(&requestedMute, &muteError)) {
+            qWarning().noquote() << "kencoder-notify:" << muteError;
+            requestedMute = true;
+        }
+        const bool newlyMuted = requestedMute && !muted_;
+        muted_ = requestedMute;
         config_ = fresh;
-        player_.setRestoreStep(defaultStep(config_));
+        policy_ = policy;
+        updateDpmsTimer();
+        updateSessionGuard();
+        if (newlyMuted && !player_.idle())
+            player_.forceState(guarded_ ? offStep() : defaultStep(config_));
         lastTriggered_.clear();
         if (!config_.enabled) {
             registrationRetry_.stop();
@@ -348,6 +466,13 @@ public:
         refreshWatchPaths();
         return true;
     }
+
+    QString listenerStatus() const
+    {
+        if (!config_.enabled) return QStringLiteral("disabled");
+        return registered_ ? QStringLiteral("active") : QStringLiteral("unavailable");
+    }
+    bool notificationsMuted() const { return muted_; }
 
     bool play(const QString &id)
     {
@@ -367,7 +492,7 @@ public:
         }
         const auto preset = KEncoderNotify::presetById(latest, id);
         if (preset.isEmpty()) return false;
-        player_.setRestoreStep(defaultStep(latest));
+        player_.setRestoreStep(guarded_ ? offStep() : defaultStep(latest));
         return player_.enqueue(preset);
     }
 
@@ -376,7 +501,8 @@ public:
     {
         Q_UNUSED(id);
         // Changes to an existing notification can be frequent. Trigger only for new items.
-        if (replacesId != 0 || !config_.enabled || !registered_)
+        if (replacesId != 0 || muted_ || !config_.enabled || !registered_ ||
+            (!policy_.notifyWhenInactive && (locked_ || screenOff_)))
             return;
         for (const auto &entry : config_.rules) {
             const auto rule = entry.toObject();
@@ -396,13 +522,74 @@ public:
         }
     }
 
+private Q_SLOTS:
+    void onLockChanged(bool locked)
+    {
+        if (locked_ == locked) return;
+        locked_ = locked;
+        updateSessionGuard();
+    }
+
 private:
+    void refreshLockState()
+    {
+        const QDBusMessage call = QDBusMessage::createMethodCall(
+            QStringLiteral("org.freedesktop.ScreenSaver"), QStringLiteral("/ScreenSaver"),
+            QStringLiteral("org.freedesktop.ScreenSaver"), QStringLiteral("GetActive"));
+        const QDBusMessage reply = QDBusConnection::sessionBus().call(call, QDBus::Block, 700);
+        if (reply.type() == QDBusMessage::ReplyMessage && !reply.arguments().isEmpty())
+            locked_ = reply.arguments().first().toBool();
+    }
+
+    void updateDpmsTimer()
+    {
+        const bool needed = policy_.offOnScreenOff ||
+                            (config_.enabled && !policy_.notifyWhenInactive);
+        if (needed) {
+            dpmsTimer_.start();
+            checkDpms();
+        } else {
+            dpmsTimer_.stop();
+            if (screenOff_) {
+                screenOff_ = false;
+            }
+        }
+    }
+
+    void checkDpms()
+    {
+        if (dpmsCheck_.state() != QProcess::NotRunning) return;
+        const QString type = qEnvironmentVariable("XDG_SESSION_TYPE");
+        const QString executable = QStandardPaths::findExecutable(
+            type == QLatin1String("wayland") ? QStringLiteral("kscreen-doctor")
+                                             : QStringLiteral("xset"));
+        if (executable.isEmpty()) return;
+        dpmsCheck_.start(executable, type == QLatin1String("wayland")
+            ? QStringList{QStringLiteral("--dpms"), QStringLiteral("show")}
+            : QStringList{QStringLiteral("q")});
+        QTimer::singleShot(2000, this, [this] {
+            if (dpmsCheck_.state() != QProcess::NotRunning) dpmsCheck_.kill();
+        });
+    }
+
+    void updateSessionGuard()
+    {
+        const bool off = (policy_.offOnLock && locked_) ||
+                         (policy_.offOnScreenOff && screenOff_);
+        player_.setRestoreStep(off ? offStep() : defaultStep(config_));
+        if (off != guarded_) {
+            guarded_ = off;
+            player_.forceState(off ? offStep() : defaultStep(config_));
+        }
+    }
+
     void refreshWatchPaths()
     {
         const QString directory = KEncoderNotify::configDirectory();
         QDir().mkpath(directory);
         const QStringList wanted{directory, KEncoderNotify::presetsFile(),
-                                 KEncoderNotify::rulesFile()};
+                                 KEncoderNotify::rulesFile(), KEncoderSession::policyFile(),
+                                 KEncoderNotify::muteFile()};
         for (const QString &path : fileWatcher_.files() + fileWatcher_.directories()) {
             if (!wanted.contains(path)) fileWatcher_.removePath(path);
         }
@@ -441,11 +628,19 @@ private:
     }
 
     Configuration config_;
+    KEncoderSession::Policy policy_;
+    bool muted_ = false;
     Player player_;
+    bool locked_ = false;
+    bool screenOff_ = false;
+    bool guarded_ = false;
+    QTimer dpmsTimer_;
+    QProcess dpmsCheck_;
     WatcherObject watcherObject_;
     ControlObject controlObject_;
     QFileSystemWatcher fileWatcher_;
     QDBusServiceWatcher plasmaWatcher_;
+    QDBusServiceWatcher screenSaverWatcher_;
     QTimer reloadTimer_;
     QTimer registrationRetry_;
     QElapsedTimer clock_;
@@ -469,6 +664,10 @@ ControlObject::ControlObject(Daemon *owner) : QObject(owner), owner_(owner) {}
 bool ControlObject::Reload() { return owner_->reload(); }
 bool ControlObject::PlayPreset(const QString &id) { return owner_->playManual(id); }
 uint ControlObject::PlaybackProtocolVersion() { return kPlaybackProtocolVersion; }
+uint ControlObject::SessionPolicyProtocolVersion() { return 1; }
+QString ControlObject::ListenerStatus() { return owner_->listenerStatus(); }
+uint ControlObject::MuteProtocolVersion() { return 1; }
+bool ControlObject::NotificationsMuted() { return owner_->notificationsMuted(); }
 
 bool dryRun(const Configuration &config, const QString &id)
 {
@@ -507,7 +706,19 @@ int main(int argc, char **argv)
     app.setApplicationName(QStringLiteral("kencoder-notify"));
     const QStringList args = app.arguments();
     if (args.size() == 2 && args.at(1) == QLatin1String("--help")) {
-        QTextStream(stdout) << "kencoder-notify --daemon | --check | --play ID [--dry-run] | --simulate APP TITLE BODY\n";
+        QTextStream(stdout) << "kencoder-notify --daemon | --check | --session-policy | --play ID [--dry-run] | --simulate APP TITLE BODY\n";
+        return 0;
+    }
+    if (args.size() == 2 && args.at(1) == QLatin1String("--session-policy")) {
+        KEncoderSession::Policy state;
+        QString error;
+        if (!KEncoderSession::loadPolicy(&state, &error)) {
+            qCritical().noquote() << error;
+            return 2;
+        }
+        QTextStream(stdout) << "Session policy: lock=" << state.offOnLock
+                            << "; screen-off=" << state.offOnScreenOff
+                            << "; notify-when-inactive=" << state.notifyWhenInactive << '\n';
         return 0;
     }
     Configuration config;
@@ -517,7 +728,13 @@ int main(int argc, char **argv)
         return 2;
     }
     if (args.size() == 2 && args.at(1) == QLatin1String("--check")) {
-        QTextStream(stdout) << "Configuration: OK; enabled=" << config.enabled
+        bool muted = false;
+        if (!KEncoderNotify::loadMute(&muted, &error)) {
+            qCritical().noquote() << error;
+            return 2;
+        }
+        QTextStream(stdout) << "Configuration: OK; muted=" << muted
+                            << "; enabled=" << config.enabled
                             << "; backend=" << config.backend
                             << "; presets=" << config.presets.size()
                             << "; rules=" << config.rules.size() << '\n';
