@@ -353,3 +353,32 @@ These filenames record provenance; they are not a promise that every volatile lo
 ### External technical reference
 
 Linux kernel documentation: [HIDRAW - Raw Access to USB and Bluetooth Human Interface Devices](https://www.kernel.org/doc/html/latest/hid/hidraw.html).
+
+## 10. Deferred research: independent Wave direction and animation speed readback (2026-11-06)
+
+**Investigation status: not demonstrated; further experiments deferred.** The HP OMEN Encoder (Woody2, `03f0:3341`) has a verified `GetDeviceInfo` (`80 01`) readback for lighting On/Off, effect family, and brightness. No independently verified hardware readback for **Wave direction** or **animation speed** has been found. This is **not** proof that the firmware cannot report these values through another, currently unknown mechanism.
+
+### Evidence and limitations
+
+- Controlled Linux tests showed that the complete 64-byte `80 01` response is identical for opposite Wave directions when other settings match, and identical for tested Ripple speeds. The known response contains no independently decodable direction or speed.
+- In the HP Windows SDK, `McuGeneralHelper::GetLightingEffect` constructs a candidate request involving `0x83`; its generic parser includes direction and speed fields. Static tracing did **not** establish a Woody2 call path to this method. Woody2 opens through `McuKeyboardHelper::OpenDevice`, not the general helper path. **Do not send `0x83` to this keyboard based on its name alone.**
+- `SingleColorStorageModel::RegLoadAnimationSettings` reads `AnimationLightingSettings` from `IStorage::GetValue`; `RegSaveAnimationSettings` serializes settings as JSON and writes them with `IStorage::SetValue`. This is software-profile storage, **not** proof of a hardware readback.
+- The keyboard `DeviceLightingHelper::SetAnimationLighting` converts animation speed and Wave direction (`McuCommonConverter::ConvertAnimationSpeed` / `ConvertWaveDirection`) before calling `McuKeyboardHelper::SetLightingEffect`. This is a **write** path, not evidence of reading those fields from the device.
+- `KeyboardV3Bg` recognizes event numbers **34** and **35** for the two Wave directions, but their origin and transport have not been established as an independent Linux-readable state source. `Woody2AutoReportHelper::EnableAutoReport` itself returns a completed task; registration of callbacks via `HardwareEventHelper::AddReportCallback` does not establish current-state readback.
+- The targeted `HP.Omen.Core.UI.Common.dll` IL audit (SHA-256 `5da6d75ecb67574f480d88bde5c065fb527fc97421d133abd599a5c4d2f61cdf`) found no resolved `GetLightingEffect` call within that assembly. The decoder left some indirect/generic `MethodSpec` call targets unresolved; other DLLs, firmware revisions, reflection, and native paths cannot be ruled out solely from this absence.
+
+### Possible future directions (not scheduled)
+
+1. **A verified Woody2-specific read call in a newer SDK or firmware:** trace the complete caller and response format statically before considering a controlled experiment. Generic SDK support is insufficient evidence.
+2. **Vendor-interface event reports:** establish whether the `34`/`35` direction events originate on USB interface `mi_02`, and whether they convey actual state rather than a software action. Previous passive vendor-interface reads did not yield unsolicited messages. Never inspect normal keyboard/keypress interfaces for this purpose.
+3. **A narrowly scoped capture from a real Windows session, if one ever becomes available:** distinguish setting writes from responses when opening the lighting UI, changing speed/direction, and reopening it. No Windows installation or capture is required for current development.
+4. **Local history of KEncoder-applied settings, only as a separate UX feature:** storing the last requested speed/direction could help users, but the value must be explicitly labeled **locally remembered**, never `source: hardware`, and may be stale after another application changes the keyboard.
+
+### Decision for current development
+
+- Stop further readback probing and SDK reverse engineering for now; no additional USB/HID tests are required.
+- Keep `direction: null`, `speed: null`, and `partial: true` in the device-reported JSON contract until a genuinely independent source is validated.
+- Continue development of the CLI, Qt6 GUI, optional Plasma KCM, packaging, and release workflow using the already verified effect-family and brightness readback.
+- Reopen this investigation only when new concrete evidence becomes available. Never brute-force unknown HID opcodes, firmware commands, or report formats.
+
+The supporting local analysis logs are `kencoder-omen-core-ui-audit-v1.log`, `kencoder-omen-core-ui-trace-v2.log`, and `kencoder-omen-core-ui-async-v3.log` (working-tree `.log/`; not assumed to exist in a release checkout).
