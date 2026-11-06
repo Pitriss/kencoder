@@ -1,3 +1,11 @@
+kencoder (0.2.1) unstable; urgency=medium
+
+  * Document the released desktop, notification and session-policy features.
+  * Place KEncoder Notify under the Keyboard category in System Settings.
+  * Update the GUI component version and package description.
+
+ -- Pitriss <5106460+Pitriss@users.noreply.github.com>  Fri, 06 Nov 2026 14:00:00 +0100
+
 kencoder (0.2.0) unstable; urgency=medium
 
   * Add KEncoder Notify with preset rules and reliable Default restoration.

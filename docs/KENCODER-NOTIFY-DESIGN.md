@@ -1,37 +1,69 @@
-# KEncoder Notify: experimental design (branch `feature/notification-reactions`)
+# KEncoder Notify
 
-## Scope of the first implementation
+## Overview
 
-- **Opt-in** per-user notification reaction system, disabled by default.
-- Primary backend: Plasma 6 `org.kde.NotificationManager.RegisterWatcher` on the user session bus. It does **not** own `org.freedesktop.Notifications`, and it does not use `dbus-monitor` or capture keyboard-input interfaces.
-- Planned backend `knotify-scanner` / per-user scanner is **phase 2**, shown but disabled in the KCM. Never silently use it as a fallback.
-- Separate `kencoder-notify` process uses Qt6Core and Qt6DBus, not KF6.
-- Separate `kcm_kencoder_notify` plugin inside the existing optional KDE KCM build. The ordinary Qt Widgets `kencoder` executable remains KF6-free.
-- Two independent, atomically written, versioned JSON files under the XDG config home:
-  - `$XDG_CONFIG_HOME/kencoder/notify-presets.json`
-  - `$XDG_CONFIG_HOME/kencoder/notify-rules.json`
-- No hard-coded maximum number of saved presets, rules or steps. To prevent hardware-command floods, only 16 *pending executions* may be queued at a time; overflow is dropped. One sequence runs at a time.
-- Rules match literal substrings, case-insensitively: `app_contains`, `title_contains`, `text_contains` (title + body). Empty strings mean “any”; at least one condition must be non-empty. A rule has one preset; multiple rules may reference the same preset. Rules are evaluated in stored order; the **first enabled, matching, non-cooldown rule that can be queued wins**. Later matching rules do not trigger for that notification. The KCM moves rows with ↑/↓ and immediately persists JSON array order.
-- Replacements/updates (`replaces_id != 0`) are ignored to avoid repeated animation from progress notifications. A per-rule cooldown (default 5000 ms) provides further protection.
-- Only configured, validated action types map to the existing `encoder` CLI. No unknown HID opcode is sent. Steps: `static`, `off`, `breathe`, `ripple`, `left_wave`, `right_wave`, `wait`.
-- Step duration (50..60000 ms) starts **after** the CLI command exits. USB/HID execution timing is not guaranteed. After **every** non-Default sequence, the first step of the reserved `Default` preset is applied once, **without hold time**. If an effect fails, remaining effects and pending sequences are cancelled, but a single best-effort Default restoration is still attempted. A failed restoration is reported and never retried automatically. To blink twice, explicitly add `off/static/off/static` steps.
-- `--play` refuses to forward to an older/unresponsive D-Bus daemon (playback protocol < 2) that could omit restoration. Restart an already running daemon after upgrading; a daemon processing notifications cannot be replaced just by rebuilding a binary. Forwarded `--play` acknowledges queueing, not final hardware completion.
-- No `encoder --status` readback follows sequence steps. A successful CLI return is not proof of the resulting physical lighting state. If both an effect and the Default restoration fail, the device may still be in an unknown state; no software-only guarantee is possible when HID or the device is unavailable.
-- Messages (title and body) are not saved to JSON or diagnostics. Avoid printing notification payloads to journald.
+KEncoder Notify provides configurable keyboard-lighting reactions to KDE Plasma 6 desktop notifications.
 
-## User interface
+The implementation consists of:
 
-Top of `kcm_kencoder_notify`:
+- `kencoder-notify`: per-user Qt 6 daemon and lighting sequence player
+- `kcm_kencoder_notify`: Plasma 6 configuration module
+- Shared configuration validation and persistence in `notify/config.cpp`
+- Session lighting policy handling in `notify/session_policy.cpp`
 
-1. `Aktivovat naslouchání notifikacím` checkbox.
-2. Backend drop-down: `KEncoder listener (KDE watcher)` and disabled `KNotify scanner / user daemon (fáze 2)`.
-3. **Separate** `Použít nastavení naslouchání` button. The draft checkbox/dropdown do not take effect until this button is clicked.
+The daemon starts automatically with the KDE Plasma session through an XDG autostart entry. It remains active even when notification listening is disabled because it also manages keyboard lighting during session lock and monitor-power transitions.
 
-Below: independently scrolling **Presety** and **Pravidla** lists. The first, undeletable preset `Default` (`id=default`) specifies the desired post-reaction lighting state; only its first step is used, with duration ignored. Missing `Default` is synthesized in memory as static brightness 1; reading an old JSON never writes it back automatically. It becomes persisted on the next preset save. Other presets have `Přehrát / Upravit / Smazat` under the list, plus `Nový preset` in the header. Rules have `Upravit / Smazat`, plus `Nové pravidlo` in the header and an immediate, per-row enable checkbox. Preset editor may be enlarged using the mouse but cannot be shrunk below its opening dimensions. Steps can be loaded into the form and edited; brightness/speed use equally sized ComboBoxes in separate rows. A persistent status bar shows listener state, backend hints, saved/failed operations and rule enable/move feedback. The listener selector has no redundant Backend label; the preset editor opens taller to fit the stacked fields.
+Notification listening is opt-in and disabled by default.
 
-## JSON example
+## Notification backend
 
-`notify-presets.json`:
+The implemented backend uses the Plasma 6 `org.kde.NotificationManager.RegisterWatcher` API on the user's session bus.
+
+The listener:
+
+- Does not own `org.freedesktop.Notifications`.
+- Does not use `dbus-monitor` or inspect arbitrary D-Bus traffic.
+- Does not capture keyboard input.
+- Registers with Plasma only while notification listening is enabled.
+
+The `knotify-scanner` backend shown as a future option in the KCM is not implemented. It remains disabled and is never selected as an automatic fallback.
+
+The `kencoder-notify` daemon uses Qt 6 Core and DBus and does not link against KF6. The KCM plugin is built separately. The ordinary Qt Widgets `kencoder` executable remains KF6-free.
+
+## Configuration files
+
+Configuration is stored per user under:
+
+`$XDG_CONFIG_HOME/kencoder/`
+
+The daemon and KCM use four independent, versioned JSON files:
+
+| File | Purpose |
+|---|---|
+| `notify-presets.json` | Saved lighting presets and their ordered steps |
+| `notify-rules.json` | Notification matching rules, listener enablement and backend |
+| `notify-muted.json` | Manual mute state for automatic lighting reactions |
+| `session-policy.json` | Session lock, monitor-power and inactive-notification policy |
+
+Writes are atomic. Missing files use safe defaults. Invalid notification configuration fails closed rather than silently retaining stale rules.
+
+### Presets and steps
+
+Presets contain ordered lighting steps. Supported step types are:
+
+- `static`
+- `off`
+- `breathe`
+- `ripple`
+- `left_wave`
+- `right_wave`
+- `wait`
+
+Brightness uses the CLI scale 0–3. Animation speed is stored as 1 (slow), 2 (medium) or 3 (fast). Step duration is a hold time after the CLI command exits, not a guaranteed hardware animation duration. Supported hold values are 50–60000 ms.
+
+There is no fixed limit on the number of saved presets or steps.
+
+Example `notify-presets.json`:
 
 ```json
 {
@@ -39,17 +71,41 @@ Below: independently scrolling **Presety** and **Pravidla** lists. The first, un
   "presets": [
     {
       "id": "teams-two-waves",
-      "name": "Teams: dvě vlny",
+      "name": "Teams: two waves",
       "steps": [
-        {"type":"left_wave",  "brightness":1, "speed":2, "duration_ms":200},
-        {"type":"right_wave", "brightness":1, "speed":2, "duration_ms":200}
+        {"type": "left_wave", "brightness": 1, "speed": 2, "duration_ms": 200},
+        {"type": "right_wave", "brightness": 1, "speed": 2, "duration_ms": 200}
       ]
     }
   ]
 }
 ```
 
-`notify-rules.json`:
+### Default preset
+
+The reserved preset `Default` (`id=default`) specifies the desired lighting state after a notification reaction. It cannot be deleted.
+
+Only its first step is used and its duration is ignored. If an older configuration has no `Default`, a static brightness-1 preset is synthesized in memory. Reading the older file does not modify it; the synthesized preset is persisted on the next preset save.
+
+When a session off-policy is active, the daemon uses the `off` state instead of `Default` until all applicable off conditions have cleared.
+
+### Notification rules
+
+Rules match literal substrings, case-insensitively:
+
+- `app_contains`: notification application name
+- `title_contains`: notification title
+- `text_contains`: notification title and body text
+
+Empty conditions mean “any”; at least one condition must be non-empty. A rule references one preset, and multiple rules may reference the same preset.
+
+Rules are evaluated in their stored order. The first enabled, matching rule that is not in cooldown and whose preset can be queued wins. Later matching rules are not triggered for the same notification.
+
+The KCM supports immediate per-rule enable/disable and drag-and-drop ordering. The order is persisted to the JSON array when the drag operation is completed. Up/down controls remain available as an alternative.
+
+Notification replacements and updates (`replaces_id != 0`) are ignored. Each rule has an independent cooldown; the default is 5000 ms.
+
+Example `notify-rules.json`:
 
 ```json
 {
@@ -59,9 +115,13 @@ Below: independently scrolling **Presety** and **Pravidla** lists. The first, un
   "rules": [
     {
       "id": "teams-xyz",
-      "name": "Teams obsahuje XYZ",
+      "name": "Teams message contains XYZ",
       "enabled": true,
-      "match": {"app_contains":"Teams", "title_contains":"", "text_contains":"XYZ"},
+      "match": {
+        "app_contains": "Teams",
+        "title_contains": "",
+        "text_contains": "XYZ"
+      },
       "preset_id": "teams-two-waves",
       "cooldown_ms": 5000
     }
@@ -69,58 +129,120 @@ Below: independently scrolling **Presety** and **Pravidla** lists. The first, un
 }
 ```
 
-Speeds are numbered 1 (slow), 2 (medium), 3 (fast), translated to `encoder -v slow|medium|fast`. Brightness uses the public CLI's 0..3 scale. `duration_ms` is a hold time after each command, not a precise HID duration.
+The listener remains disabled until the user explicitly enables it in the KCM and applies the listener settings.
 
-## Build and safety checks
+### Manual mute
+
+The standalone KEncoder application can mute automatic lighting reactions using `notify-muted.json`:
+
+```json
+{
+  "version": 1,
+  "muted": true
+}
+```
+
+The default is `false`. Muting does not disable KDE desktop notifications, change saved rules or disable the listener. It suppresses automatic lighting reactions. Manual preset playback remains available.
+
+When mute is enabled, queued automatic reactions are cancelled. If a sequence is in progress, the daemon attempts to restore the current `Default` or session-guarded `off` state.
+
+## Playback and restoration
+
+Only validated step types are translated into existing `encoder` CLI arguments. No arbitrary HID opcode is accepted from configuration.
+
+One sequence runs at a time. Up to 16 pending executions may be queued; additional requests are dropped when the queue is full.
+
+After every non-`Default` sequence, the first step of `Default` is applied once without a hold time. If a session off-policy is active, the guarded `off` state takes precedence.
+
+If an effect command fails:
+
+- Remaining steps in the sequence are cancelled.
+- Pending sequences are discarded.
+- One best-effort restoration of `Default` or the guarded `off` state is attempted.
+- A failed restoration is reported and is not retried automatically.
+
+If both an effect and its restoration fail, the physical keyboard state may remain unknown. No software-only guarantee is possible when the HID interface or device is unavailable.
+
+No hardware readback is performed after each sequence step. A successful CLI exit is not proof of the resulting physical lighting state.
+
+Manual `--play` requests forwarded to an already-running daemon require playback protocol version 2 or newer. An older or unresponsive daemon is rejected rather than silently accepting playback without the restoration behavior. Restart the daemon after updating its executable. A forwarded request acknowledges queueing, not final hardware completion.
+
+## KCM user interface
+
+The KEncoder Notify KCM is grouped under **System Settings → Keyboard**, next to the main HP OMEN Encoder module.
+
+The KCM provides:
+
+- Listener enable/disable and backend selection
+- A separate button to apply listener settings
+- Preset creation, editing, playback and deletion
+- A protected `Default` preset
+- Editable steps with compact, aligned controls for effect, brightness, speed and duration
+- Independently scrolling Presets and Rules sections
+- A vertical splitter that resizes the two sections up and down
+- Drag-and-drop rule ordering with edge autoscroll
+- Up/down rule ordering controls as an alternative
+- Per-rule enable checkboxes
+- A persistent status bar for listener state, backend information, playback, configuration and errors
+
+The preset editor can be enlarged but cannot be reduced below its opening dimensions. The listener selector has no redundant Backend label.
+
+## Daemon and diagnostic commands
+
+The daemon is installed at:
+
+`/usr/bin/kencoder-notify`
+
+It is started once per KDE Plasma session by:
+
+`/etc/xdg/autostart/kencoder-notify-autostart.desktop`
+
+It runs even when notification listening is disabled because session policies are independent of notification rules. Installing the package during an already-running Plasma session does not retroactively execute the new autostart entry; log out and back in, or start the daemon manually as the logged-in user.
+
+Useful commands:
 
 ```bash
-cmake -S notify -B .tmp/kencoder-notify-build -DCMAKE_BUILD_TYPE=Debug && cmake --build .tmp/kencoder-notify-build
-cmake -S gui -B .tmp/kencoder-notify-gui-build -DKENCODER_REQUIRE_KCM=ON && cmake --build .tmp/kencoder-notify-gui-build
+kencoder-notify --check
+kencoder-notify --daemon
+kencoder-notify --simulate APP TITLE BODY
+kencoder-notify --play PRESET_ID --dry-run
+```
+
+`--check`, `--simulate`, and `--play ... --dry-run` do not access keyboard HID hardware. Plain `--play` sends commands to the real keyboard, either directly or through a compatible running daemon.
+
+The daemon uses the `encoder` executable found in the user's `PATH`. Do not run it as root.
+
+## Privacy and safety
+
+Notification titles and bodies are not stored in JSON files or diagnostics. Avoid logging notification payloads.
+
+The listener uses the existing `encoder` CLI. It does not introduce new HID commands, inspect keyboard input interfaces or archive notification contents.
+
+The queue is bounded, matching rules have cooldowns, and the listener is disabled by default.
+
+The Plasma notification watcher API does not guarantee long-term ABI/API stability. If registration fails, the listener remains unavailable rather than switching to an undocumented backend.
+
+## Build and tests
+
+```bash
+cmake -S notify -B .tmp/kencoder-notify-build -DCMAKE_BUILD_TYPE=Debug
+cmake --build .tmp/kencoder-notify-build
+cmake -S gui -B .tmp/kencoder-notify-gui-build -DKENCODER_REQUIRE_KCM=ON
+cmake --build .tmp/kencoder-notify-gui-build
+```
+
+Run configuration and playback diagnostics in an isolated configuration directory:
+
+```bash
 XDG_CONFIG_HOME="$PWD/.tmp/notify-sandbox" ./.tmp/kencoder-notify-build/kencoder-notify --check
 XDG_CONFIG_HOME="$PWD/.tmp/notify-sandbox" ./.tmp/kencoder-notify-build/kencoder-notify --play teams-two-waves --dry-run
 XDG_CONFIG_HOME="$PWD/.tmp/notify-sandbox" ./.tmp/kencoder-notify-build/kencoder-notify --simulate Teams Chat XYZ
 ```
 
-The first binary performs no HID operation for `--check`, `--help`, `--simulate APP TITLE BODY`, or `--play ... --dry-run`. Plain `--play` **will** send commands to the real keyboard if the `encoder` on PATH is real. KCM `Přehrát` triggers plain `--play` only on click.
+The no-HID regression suite is:
 
-The experimental executable is not automatically installed or started at login by this patch. Explicit enable in the KCM starts a per-user process when the executable is reachable in PATH. Production autostart, user service, packaging of a third optional `.deb`, and complete independent-tag CI support are separate release tasks.
+```bash
+bash ./tests/test-notify-nohid.sh
+```
 
-### Dependency invariant
-
-The `encoder` package must stay Qt/KF6-free. The normal `kencoder` executable must stay KF6-free and the KDE plugin libraries remain **optional** `Suggests`, not `Depends`. An eventual separate optional `kencoder-notify` package will depend only on the libraries its own binary really uses, and `kencoder` will merely suggest it. The new plugin must be excluded from the `kencoder` shared-library dependency scan just like the original KCM.
-
-## Known limitations and follow-ups
-
-1. **Watcher API is unstable**: KDE warns that this watcher model has no ABI/API stability guarantee. If it disappears, leave the listener inactive rather than sniffing arbitrary D-Bus traffic. Implement a documented phase-2 backend later.
-2. **No fully safe flash-write guarantee**: the firmware behavior of repeated setting sequences is not completely characterized. Keep opt-in default, cooldown, sequential execution and backpressure; do not run rapid unattended tests as a default.
-3. **No automatic restart across logins yet**: per-user service/desktop autostart belongs to the optional third package, after functional tests.
-4. **Desired-state restoration, not readback**: `Default` is user-configured and is not inferred from keyboard hardware. Its first step is sent after the queued sequence completes successfully; an unsuccessful sequence fails closed without a restore write.
-5. **Desktop identity**: KDE delivers the notification `app_name`, which can differ from desktop-file ID; the first matching phase uses `app_contains` with case-insensitive substring checks.
-6. **No message archiving**: privacy is part of the design. A future “last notification” picker requires an explicit opt-in and memory-only retention.
-7. Real Qt6/KF6 build, KCM loading, runtime watcher registration, packaging and hardware command timing must be confirmed on Debian 13; static patch checks do not prove these properties.
-
-## UI refinements (v3)
-
-- The listener's current enabled/disabled state is shown in the status bar only while idle.
-  Confirmations, validation failures and transient hints replace the entire status message
-  for six seconds, then the listener state returns.
-- Preset editor labels (`Efekt`, `Jas`, `Rychlost`, `Trvání`) use a common compact width.
-  The step selector and brightness/speed selectors take the remaining row width.
-- The preset and rule panels are separated by a **horizontal draggable splitter**.
-  Only their height changes; the listener controls above and status bar below stay fixed.
-- Rules may be reordered by dragging the grip at the beginning of a row, including
-  edge autoscroll for long lists; release persists a single JSON reorder. The ↑/↓
-  buttons remain available as an alternative.
-- After every successfully executed non-Default sequence, the first Default step is
-  sent once with no hold, before processing another queued sequence. Manual `--play`
-  forwarded to an already-running daemon reloads its preset/Default values from disk
-  before enqueueing. On failed encoder commands, playback stops without restoration.
-- The two JSON files retain version 1 and the listener remains disabled by default.
-
-## UI refinements (v4)
-
-- The vertical SplitView retains up/down resizing, but its handle is a thin
-  theme-colored horizontal line with a compact center grip and a resize cursor.
-  Transparent space above and below the line separates the preset and rule panels.
-- The bottom status frame has a small top margin. Listener, playback, rules,
-  configuration and hardware semantics remain unchanged from v3.
+It uses isolated configuration directories, private D-Bus sessions and mock `encoder` commands. It does not require a real keyboard.

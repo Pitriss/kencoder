@@ -12,5 +12,6 @@ Vcs-Git: https://github.com/Pitriss/kencoder.git
 Package: kencoder
 Architecture: linux-any
 Depends: encoder (>= @MIN_ENCODER_VERSION@), ${shlibs:Depends}, ${misc:Depends}, qt6-qpa-plugins, libkf6kcmutils6, qml6-module-org-kde-kcmutils, qml6-module-org-kde-kirigami
-Description: Qt6 GUI for HP OMEN Encoder lighting
- KDE Plasma 6 friendly lighting controls for the HP OMEN Encoder keyboard.
+Description: KDE Plasma 6 frontend and notification service for HP OMEN Encoder
+ Qt 6 desktop application, two Plasma System Settings modules, per-user
+ notification and session daemon, and keyboard lighting controls.

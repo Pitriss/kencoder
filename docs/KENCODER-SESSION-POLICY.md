@@ -1,74 +1,144 @@
-# KEncoder: Session lighting policy (experimental)
+# KEncoder: Plasma session lighting policy
 
-The original **HP OMEN Encoder** KCM stores independent per-user options in
-`$XDG_CONFIG_HOME/kencoder/session-policy.json` (`version=1`, booleans
-`off_on_lock`, `off_on_screen_off`, `notify_when_inactive`). Missing file means
-all options disabled. Writes are atomic, and opening the KCM does not modify
-lighting or enable any new policy.
+## Overview
 
-- **Lock:** `org.freedesktop.ScreenSaver.ActiveChanged` on the Plasma session bus;
-  `GetActive` is queried when the service starts, so launching while locked
-  does not leave the keyboard illuminated. KScreenLocker emits this event on
-  lock/unlock; it is not a separate "screen saver animation" event.
-- **Screen saver / screen off:** monitor **DPMS** using `kscreen-doctor --dpms show`
-  every three seconds on Wayland, `xset q` on X11. Only if all queried monitors
-  are off is the session treated as screen-off. Detection may lag up to three
-  seconds; if the query fails or neither tool is present, this option cannot
-  detect screen-off. It does not force the monitor to power off.
-- **Notification gating:** by default, KEncoder Notify ignores notifications
-  while locked or while the monitors report off. When explicitly permitted, it
-  may play an effect while inactive; if the corresponding off-policy is also
-  active, the effect is restored to the `off` state instead of lighting the
-  keyboard continuously.
-- **Suspend:** Linux suspend stops execution of this per-user process. Events
-  cannot be processed while the computer is truly suspended. The checkbox
-  controls notifications while locked/screen-blanked, not while suspended.
-- **Wake/unlock:** after KEncoder automatically turned the lighting off,
-  the controller applies the **first step of the configured `Default` preset**
-  once, without duration. When both policies are applicable, unlocking alone
-  will not light the keyboard while the screen is still off.
-- **Safety:** an in-flight CLI command is allowed to finish (or time out) before
-  the session transition overrides it. Remaining animation steps are cancelled;
-  the latest off/Default state wins. All commands continue to use the known
-  `encoder` CLI; this feature adds no HID operations or polling of the keyboard.
-  Independent readback is not part of the session policy.
+KEncoder integrates keyboard lighting with KDE Plasma 6 session events. The original HP OMEN Encoder KCM stores independent per-user options in:
 
-The existing `kencoder-notify --daemon` is the session worker and is installed
-with a Plasma XDG autostart entry. It runs even if notification listening is
-disabled, because lock/DPMS rules are independent. Enabling a checkbox tries
-to start or reload it immediately. Installing a package requires a new login
-(or manual `kencoder-notify --daemon` invocation) to activate the autostart.
+`$XDG_CONFIG_HOME/kencoder/session-policy.json`
 
-The KCM checks `SessionPolicyProtocolVersion` before reloading a running
-worker; an older listener is rejected rather than silently ignoring options.
+The version-1 JSON file contains three booleans:
 
-## Readiness and manual mute
+- `off_on_lock`
+- `off_on_screen_off`
+- `notify_when_inactive`
 
-The original KEncoder KCM presents a read-only three-light readiness panel:
-1. Keyboard status is green only after a successful `encoder --status --json`
-   readback, amber while checking, red on failure. Checking this status uses
-   the existing validated read-only HID command, not a lighting write.
-2. KEncoder Notify readiness checks the executable, valid configuration and
-   the running daemon protocol. A configured but stopped daemon is amber.
-3. Listener readiness asks the running daemon whether the Plasma watcher was
-   actually registered. Disabled is amber; failed registration is red.
+A missing file means all policies are disabled. Writes are atomic. Opening the KCM does not change keyboard lighting or enable a policy.
 
-The standalone Qt Widgets GUI has a **Vypnout světelné notifikace KEncoder Notify**
-checkbox. It atomically stores a separate XDG file,
-`$XDG_CONFIG_HOME/kencoder/notify-muted.json`, format
-`{"version":1,"muted":true|false}`. The default is false. Muting suppresses
-new automatic lighting reactions without altering the KDE notification system,
-existing rules, or listener enablement. Manual preset playback remains possible.
-The daemon observes this file and on mute cancels queued effects; if an effect
-was in progress, it attempts to restore the current Default/off policy.
-An older daemon does not understand this file and must be restarted after update.
+Example:
 
-The **Otevřít ovládací panel** button prefers `systemsettings kcm_kencoder`,
-then `systemsettings6 kcm_kencoder`, then `kcmshell6 kcm_kencoder`.
+```json
+{
+  "version": 1,
+  "off_on_lock": true,
+  "off_on_screen_off": true,
+  "notify_when_inactive": false
+}
+```
 
-**Migration:** Stop the old `backlightctl.sh` process before activating a session
-policy, otherwise both processes will issue conflicting `encoder` commands.
+## Session lock
 
-**Testing:** `bash ./tests/test-notify-nohid.sh` now includes an isolated private
-D-Bus test using mock executables for `encoder` and `kscreen-doctor`. No real
-HID access is requested by the test suite.
+The daemon monitors `org.freedesktop.ScreenSaver.ActiveChanged` on the Plasma session bus.
+
+The current lock state is queried when the daemon starts. This prevents an already locked session from leaving the keyboard illuminated after daemon startup. When `off_on_lock` is enabled, keyboard lighting is turned off while the session is locked.
+
+After unlocking, the first step of the configured `Default` preset is applied once, unless another off-policy is still active.
+
+This is a session lock/unlock event, not a separate screen-saver animation event.
+
+## Monitor power state
+
+Monitor power is checked every three seconds.
+
+- On Wayland, the daemon uses `kscreen-doctor --dpms show`.
+- On X11, it uses `xset q`.
+
+The session is considered screen-off only when all queried monitors report DPMS off. Detection may lag by up to three seconds. If the required command is unavailable or its output cannot be parsed, screen-off detection cannot be confirmed.
+
+This policy does not turn monitors off. It reacts to their reported power state.
+
+## Notification behavior
+
+By default, notification reactions are ignored while the session is locked or while the monitors report off.
+
+When `notify_when_inactive` is enabled, notification reactions are allowed during those states. If `off_on_lock` or `off_on_screen_off` is also active, the daemon restores the guarded `off` state after the notification sequence instead of leaving the keyboard illuminated.
+
+The standalone KEncoder application's separate mute switch suppresses automatic lighting reactions without changing KDE desktop notifications, saved notification rules or listener enablement. Manual preset playback remains available.
+
+## Suspend and resume
+
+A per-user process cannot handle events while Linux is actually suspended. The inactive-session option applies to locked or screen-blanked sessions, not to suspend.
+
+After resume, the daemon re-evaluates the current session and monitor state. If an off-policy is no longer active after wake/unlock, it applies the first step of the configured `Default` preset once, without a duration.
+
+If the session is unlocked while monitors are still off and `off_on_screen_off` is enabled, unlocking alone does not restore the Default lighting state.
+
+## Daemon lifecycle
+
+The session worker is:
+
+`/usr/bin/kencoder-notify --daemon`
+
+It starts automatically through:
+
+`/etc/xdg/autostart/kencoder-notify-autostart.desktop`
+
+The daemon runs once per user's KDE Plasma session and uses that session's D-Bus connection. It runs even when notification listening is disabled because lock and monitor-power policies are independent of notification rules.
+
+Installing the package while Plasma is already running does not execute the new XDG autostart entry in the current session. Log out and back in, or start the daemon manually as the logged-in user:
+
+```bash
+kencoder-notify --daemon
+```
+
+When a policy is changed in the KCM, the configuration is saved and the running daemon is asked to reload it. The KCM checks `SessionPolicyProtocolVersion`; an older daemon is rejected rather than silently ignoring the new policy. Restart an already-running daemon after updating its executable.
+
+## Readiness indicators
+
+The original HP OMEN Encoder KCM displays three independent readiness indicators.
+
+### Keyboard
+
+Green only after a successful `encoder --status --json` hardware readback, amber while checking and red on failure.
+
+The readback reports the device-reported brightness and effect family. It cannot determine wave direction or animation speed. The current parser accepts the validated Woody2 protocol profile. The readback is a separate, bounded HID query; session policy monitoring itself does not continuously poll the keyboard.
+
+### KEncoder Notify
+
+Checks the `kencoder-notify` executable, notification configuration and the running daemon's D-Bus protocol. A valid but stopped daemon is shown as not currently running. Invalid configuration or an incompatible daemon is reported as a problem.
+
+### Listener
+
+Checks the daemon's actual registration state with the Plasma notification manager:
+
+- **Active:** the notification watcher is registered.
+- **Disabled:** notification listening is disabled in KEncoder Notify settings.
+- **Unavailable:** listening is enabled, but registration with Plasma failed.
+
+The listener can be disabled while session lighting policies remain operational.
+
+## Standalone KEncoder application
+
+The Qt Widgets application provides:
+
+- Runtime keyboard readiness status
+- A switch to mute automatic KEncoder Notify lighting reactions
+- Direct access to the KEncoder System Settings module
+- Optional system-tray integration
+
+The mute switch affects only automatic KEncoder Notify lighting reactions. It does not disable KDE desktop notifications.
+
+The **Otevřít ovládací panel** button prefers `systemsettings kcm_kencoder`, then `systemsettings6 kcm_kencoder`, and finally `kcmshell6 kcm_kencoder`.
+
+## Safety and migration
+
+An in-flight encoder command is allowed to finish or time out before a session transition overrides it. Remaining animation steps are cancelled; the latest off or Default state takes priority.
+
+Session policy uses the existing `encoder` CLI. It adds no new HID protocol and performs no continuous hardware readback.
+
+Stop any older `backlightctl.sh` process and disable its autostart before enabling the equivalent KEncoder policy. Two independent processes issuing lighting commands can overwrite each other's state.
+
+## Testing
+
+Run the session-policy test:
+
+```bash
+bash ./tests/test-session-policy-nohid.sh
+```
+
+The complete notification and session-policy suite is:
+
+```bash
+bash ./tests/test-notify-nohid.sh
+```
+
+Tests use private D-Bus sessions and mock executables for `encoder` and `kscreen-doctor`. They do not require real keyboard HID access.

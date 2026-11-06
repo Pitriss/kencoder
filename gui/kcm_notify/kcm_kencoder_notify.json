@@ -7,8 +7,8 @@
         "Icon": "preferences-desktop-notification",
         "FormFactors": ["desktop"]
     },
-    "X-KDE-System-Settings-Parent-Category": "notifications",
-    "X-KDE-Weight": 70,
+    "X-KDE-System-Settings-Parent-Category": "keyboard",
+    "X-KDE-Weight": 31,
     "X-KDE-Keywords": "KEncoder,notify,notifications,keyboard,lighting",
     "X-KDE-Keywords[cs]": "KEncoder,oznámení,notifikace,klávesnice,podsvícení"
 }
