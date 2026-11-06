@@ -49,7 +49,8 @@ else
   cp -a "$root/gui" "$stage/gui"
   cp -a "$root/notify" "$stage/notify"
   mkdir -p "$stage/packaging"
-  cp "$root/packaging/kencoder.desktop" "$root/packaging/kencoder.png" "$stage/packaging/"
+  cp "$root/packaging/kencoder.desktop" "$root/packaging/kencoder.png" \
+     "$root/packaging/kencoder-notify-autostart.desktop" "$stage/packaging/"
   min_encoder=$(tr -d '[:space:]' < "$root/packaging/ci/encoder-min-version")
   [[ "$min_encoder" =~ ^[0-9]+\.[0-9]+\.[0-9]+(\~[a-zA-Z0-9.]+)?$ ]] || { echo "Invalid minimum encoder version" >&2; exit 2; }
   dpkg --compare-versions "$min_encoder" ge 0
@@ -78,6 +79,11 @@ printf '%s (%s) unstable; urgency=medium\n\n  * Tagged CI build of %s.\n\n -- Pi
       printf 'GUI self-test: FAIL (exit %s). Package NOT published.\n' "$status" >&2
       exit "$status"
     fi
+    # Read-only smoke test; missing or broken daemon must block a release.
+    XDG_CONFIG_HOME="$work/xdg-config" ./build/notify/kencoder-notify --check > "$work/notify-check.log"
+    grep -Fq 'Configuration: OK;' "$work/notify-check.log" || {
+      echo 'KEncoder Notify smoke test failed' >&2; exit 1;
+    }
   fi
 )
 
@@ -87,6 +93,32 @@ file="$work/$package"
 [[ $(dpkg-deb -f "$file" Package) == "$component" ]]
 [[ $(dpkg-deb -f "$file" Version) == "$deb_version" ]]
 [[ $(dpkg-deb -f "$file" Architecture) == "$arch" ]]
+
+if [[ "$component" == kencoder ]]; then
+  # Ensure the archive contains all parts, rather than merely building the GUI.
+  contents=$(dpkg-deb --contents "$file")
+  for required in \
+    './usr/bin/kencoder' \
+    './usr/bin/kencoder-notify' \
+    './etc/xdg/autostart/kencoder-notify-autostart.desktop' \
+    '/qt6/plugins/plasma/kcms/systemsettings/kcm_kencoder.so' \
+    '/qt6/plugins/plasma/kcms/systemsettings/kcm_kencoder_notify.so'; do
+    [[ "$contents" == *"$required"* ]] || {
+      echo "Incomplete kencoder package: missing $required" >&2; exit 1;
+    }
+  done
+  deps=$(dpkg-deb -f "$file" Depends)
+  for required in \
+    "encoder (>= $(tr -d '[:space:]' < "$root/packaging/ci/encoder-min-version"))" \
+    'libkf6kcmutils6' \
+    'qml6-module-org-kde-kcmutils' \
+    'qml6-module-org-kde-kirigami'; do
+    [[ "$deps" == *"$required"* ]] || {
+      echo "Incomplete kencoder package: missing dependency $required" >&2; exit 1;
+    }
+  done
+  echo 'KEncoder package contents and runtime dependencies: PASS'
+fi
 
 mkdir -p "$root/dist"
 cp "$file" "$root/dist/$package"

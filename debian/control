@@ -18,8 +18,7 @@ Description: Command-line control for HP OMEN Encoder lighting
 
 Package: kencoder
 Architecture: linux-any
-Depends: encoder (>= 0.1.0), ${shlibs:Depends}, ${misc:Depends}, qt6-qpa-plugins
-Suggests: libkf6kcmutils6, qml6-module-org-kde-kcmutils, qml6-module-org-kde-kirigami
+Depends: encoder (>= 0.2.0), ${shlibs:Depends}, ${misc:Depends}, qt6-qpa-plugins, libkf6kcmutils6, qml6-module-org-kde-kcmutils, qml6-module-org-kde-kirigami
 Description: Qt 6 GUI for HP OMEN Encoder lighting
  Graphical KDE Plasma 6-friendly frontend for the encoder command-line
  utility, with brightness and lighting animation controls.

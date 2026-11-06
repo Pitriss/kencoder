@@ -1,3 +1,12 @@
+kencoder (0.2.0) unstable; urgency=medium
+
+  * Add KEncoder Notify with preset rules and reliable Default restoration.
+  * Add Plasma 6 session lock/screen policies and readiness indicators.
+  * Ship both KCM plugins, session daemon, and desktop autostart.
+  * Require the corrected encoder CLI for both GUI and notifier.
+
+ -- Pitriss <5106460+Pitriss@users.noreply.github.com>  Fri, 06 Nov 2026 12:40:00 +0100
+
 kencoder (0.1.0) unstable; urgency=medium
 
   * Initial Qt 6 frontend and Debian 13 split packages.
