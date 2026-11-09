@@ -8,6 +8,11 @@ include /usr/share/dpkg/buildflags.mk
 
 override_dh_auto_build:
 	$(MAKE) CC="$(CC)" CFLAGS="$(CFLAGS) $(CPPFLAGS)" LDFLAGS="$(LDFLAGS)"
+	# dh_installman detects the language from encoder.<lang>.1 filenames.
+	mkdir -p build/manpages
+	for lang in en sk uk de ru pl; do \
+		cp "docs/man/$$lang/man1/encoder.1" "build/manpages/encoder.$$lang.1"; \
+	done
 
 override_dh_auto_install:
 	install -Dm755 build/cli/encoder debian/encoder/usr/bin/encoder
@@ -17,3 +22,4 @@ override_dh_installudev:
 
 override_dh_auto_clean:
 	$(MAKE) clean
+	rm -rf build/manpages

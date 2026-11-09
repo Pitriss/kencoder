@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright 2026 Pitriss
+#include <QCoreApplication>
 #include "session_policy.h"
 
 #include <QDir>
@@ -27,7 +28,7 @@ QString policyFile()
 
 bool loadPolicy(Policy *out, QString *error)
 {
-    if (!out) return fail(error, QStringLiteral("Není kam načíst nastavení relace."));
+    if (!out) return fail(error, QCoreApplication::translate("KEncoderSessionErrors", "Není kam načíst nastavení relace."));
     Policy fresh; // Missing configuration is deliberately inert.
     QFile file(policyFile());
     if (!file.exists()) {
@@ -35,15 +36,15 @@ bool loadPolicy(Policy *out, QString *error)
         return true;
     }
     if (!file.open(QIODevice::ReadOnly))
-        return fail(error, QStringLiteral("Nelze číst nastavení relace."));
+        return fail(error, QCoreApplication::translate("KEncoderSessionErrors", "Nelze číst nastavení relace."));
     const QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
-    if (!doc.isObject()) return fail(error, QStringLiteral("Neplatný JSON nastavení relace."));
+    if (!doc.isObject()) return fail(error, QCoreApplication::translate("KEncoderSessionErrors", "Neplatný JSON nastavení relace."));
     const QJsonObject data = doc.object();
     if (data.value(QStringLiteral("version")).toInt(-1) != 1 ||
         !data.value(QStringLiteral("off_on_lock")).isBool() ||
         !data.value(QStringLiteral("off_on_screen_off")).isBool() ||
         !data.value(QStringLiteral("notify_when_inactive")).isBool())
-        return fail(error, QStringLiteral("Nepodporovaná konfigurace relace."));
+        return fail(error, QCoreApplication::translate("KEncoderSessionErrors", "Nepodporovaná konfigurace relace."));
     fresh.offOnLock = data.value(QStringLiteral("off_on_lock")).toBool();
     fresh.offOnScreenOff = data.value(QStringLiteral("off_on_screen_off")).toBool();
     fresh.notifyWhenInactive = data.value(QStringLiteral("notify_when_inactive")).toBool();
@@ -55,10 +56,10 @@ bool savePolicy(const Policy &policy, QString *error)
 {
     const QFileInfo target(policyFile());
     if (!QDir().mkpath(target.absolutePath()))
-        return fail(error, QStringLiteral("Nelze vytvořit adresář nastavení relace."));
+        return fail(error, QCoreApplication::translate("KEncoderSessionErrors", "Nelze vytvořit adresář nastavení relace."));
     QSaveFile file(target.absoluteFilePath());
     if (!file.open(QIODevice::WriteOnly))
-        return fail(error, QStringLiteral("Nelze otevřít nastavení relace pro zápis."));
+        return fail(error, QCoreApplication::translate("KEncoderSessionErrors", "Nelze otevřít nastavení relace pro zápis."));
     const QJsonObject data{
         {QStringLiteral("version"), 1},
         {QStringLiteral("off_on_lock"), policy.offOnLock},
@@ -67,7 +68,7 @@ bool savePolicy(const Policy &policy, QString *error)
     };
     const QByteArray payload = QJsonDocument(data).toJson(QJsonDocument::Indented);
     if (file.write(payload) != payload.size() || !file.commit())
-        return fail(error, QStringLiteral("Nelze dokončit uložení nastavení relace."));
+        return fail(error, QCoreApplication::translate("KEncoderSessionErrors", "Nelze dokončit uložení nastavení relace."));
     return true;
 }
 } // namespace KEncoderSession

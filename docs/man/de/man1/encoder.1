@@ -1,0 +1,176 @@
+.TH ENCODER 1 "2026-11-06" "KEncoder" "Benutzerbefehle"
+.SH NAME
+encoder \- Tastaturbeleuchtung der HP OMEN Encoder über die Befehlszeile
+steuern
+.SH ÜBERSICHT
+.B encoder
+.RB [ \-b " " 0|1|2|3 ]
+.RB [ \-s | \-o | \-a " " MODUS ]
+.RB [ \-v " " GESCHWINDIGKEIT ]
+.br
+.B encoder --status [--json]
+.br
+.B encoder -h
+.SH BESCHREIBUNG
+.B encoder
+stellt die Helligkeit und den Beleuchtungsmodus der HP OMEN
+Encoder-Tastatur (USB VID:PID 03f0:3341) über die
+Linux-HID-raw-Schnittstelle ein.
+Es unterstützt statische Beleuchtung, das Ausschalten der
+Beleuchtung und mehrere Animationen.
+.PP
+Das Programm sucht das passende Gerät
+.I /dev/hidrawX
+anhand der USB-Kennungen und der Größe des HID-Reportdeskriptors.
+Für die Übertragung werden Lese- und Schreibberechtigungen benötigt.
+Normale Befehle ändern die Geräteeinstellungen. Die Option
+.B --status
+liest dagegen die gemeldete Helligkeit und Effektgruppe aus, ohne
+die Beleuchtung zu ändern.
+Wellenrichtung und Animationsgeschwindigkeit können derzeit nicht
+ausgelesen werden.
+.SH OPTIONEN
+.TP
+.B --status
+Führt ausschließlich eine lesende GetDeviceInfo-Abfrage (80 01) aus
+und sendet keine Befehle zum Einstellen von Helligkeit oder
+Effekten.
+Meldet Ein/Aus, die Helligkeit von 0 bis 3 und die Effektgruppe.
+Wellenrichtung und Animationsgeschwindigkeit bleiben unbekannt.
+Kann nicht mit schreibenden Optionen kombiniert werden.
+.TP
+.B --json
+Gibt zusammen mit --status maschinenlesbares JSON aus.
+Die Felder direction und speed sind stets null; das Feld source hat
+den Wert hardware.
+.TP
+.B \-h
+Zeigt eine kurze Hilfe an und beendet das Programm. Eine
+angeschlossene Tastatur ist nicht erforderlich.
+.TP
+.B \-s
+Aktiviert die statische Tastenbeleuchtung.
+.TP
+.B \-o
+Schaltet die Beleuchtung aus.
+.TP
+.BI \-b " STUFE"
+Stellt die Helligkeit auf 0, 1, 2 oder 3. Höhere Werte bedeuten mehr
+Helligkeit.
+Ohne diese Option verwendet die derzeitige Implementierung die Stufe
+3.
+Die Helligkeit kann auch ohne Änderung des Beleuchtungsmodus separat
+eingestellt werden.
+.TP
+.BI \-a " MODUS"
+Wählt eine Animation. Unterstützte Werte:
+.RS
+.TP
+.B ripple
+Wellen- bzw. Ripple-Effekt.
+.TP
+.B left_wave
+Welle von links.
+.TP
+.B right_wave
+Welle von rechts.
+.TP
+.B breathe
+Pulsieren (Atmen).
+.RE
+.TP
+.BI \-v " GESCHWINDIGKEIT"
+Animationsgeschwindigkeit: slow, medium oder fast.
+Der Standardwert ist slow.
+Wirkt nur zusammen mit -a; ohne Animation hat die alleinige
+Einstellung der Geschwindigkeit keinen sichtbaren Effekt.
+.SH BEISPIELE
+.TP
+.B encoder -b 1 -s
+Stellt die Helligkeit auf 1 und aktiviert die statische Beleuchtung.
+.TP
+.B encoder -b 3 -a ripple -v fast
+Stellt die Helligkeit auf 3 und aktiviert einen schnellen
+Ripple-Effekt.
+.TP
+.B encoder -a left_wave -v medium
+Startet eine mittelschnelle Welle von links; ohne -b wird Helligkeit
+3 verwendet.
+.TP
+.B encoder -b 2
+Ändert nur die Helligkeit auf 2, ohne den Beleuchtungsmodus zu
+wechseln.
+.TP
+.B encoder -o
+Schaltet die Beleuchtung aus.
+.TP
+.B encoder -h
+Zeigt die Hilfe an.
+.SH REIHENFOLGE UND KOMBINATION VON OPTIONEN
+Das Programm sendet zuerst die Helligkeitseinstellung und danach den
+Befehl zum Ausschalten, für statische Beleuchtung oder für eine
+Animation.
+Dies gilt auch bei -o oder beim Aufruf ohne Optionen.
+Werden mehrere Modusoptionen angegeben, hat -o Vorrang vor -s und
+anschließend -a. Für eindeutiges Verhalten sollte nur eine
+Modusoption verwendet werden.
+.PP
+Unbekannte Argumente oder nicht unterstützte Werte werden von der
+aktuellen Implementierung nicht immer als Fehler gemeldet.
+Die Option --status verwendet einen getrennten, nur lesenden Pfad
+und sendet keine Befehle zur Änderung der Beleuchtung.
+.SH BERECHTIGUNGEN UND GERÄT
+.B encoder
+öffnet die entsprechende Schnittstelle
+.I /dev/hidrawX
+zum Lesen und Schreiben.
+Der Zugriff kann über die im Paket encoder enthaltene udev-Regel
+oder über Administratorberechtigungen erfolgen.
+Ist die Tastatur nicht angeschlossen, die Schnittstelle nicht
+auffindbar oder der Zugriff verweigert, erscheint:
+.PP
+.nf
+OMEN Encoder keyboard not found or access denied
+.fi
+.PP
+Prüfen Sie in diesem Fall den Anschluss der Tastatur und die
+Berechtigungen für das HID-raw-Gerät. Der Pfad
+.I /dev/hidrawX
+kann sich nach einem erneuten Anschließen ändern.
+.SH RÜCKGABECODES
+.TP
+.B 0
+Die Hilfe wurde angezeigt oder die Anfrage ohne Fehler beim Öffnen
+des Geräts verarbeitet.
+Ein Rückgabecode 0 bedeutet bei der aktuellen Implementierung nicht
+unbedingt, dass das Gerät alle HID-Befehle bestätigt hat.
+.TP
+.B 1
+Die passende Tastatur konnte nicht geöffnet werden (nicht gefunden
+oder Zugriff verweigert). Im Lesemodus auch Kommunikationsfehler
+oder nicht unterstütztes Antwortformat.
+.TP
+.B 2
+Ungültige Kombination von Optionen mit --status oder --json.
+.PP
+Kommunikationsfehler bei älteren Schreibbefehlen können als
+.B Command failed
+ausgegeben werden, ohne dass ein von null verschiedener Rückgabecode
+folgt. Im Lesemodus werden Fehler auf die Standardfehlerausgabe
+geschrieben.
+.SH DATEIEN
+.TP
+.I /dev/hidrawX
+HID-raw-Schnittstelle der kompatiblen Tastatur.
+.TP
+.I /usr/lib/udev/rules.d/
+Vom Paket installierte Regeln für den Gerätezugriff.
+.SH AUTOREN UND LIZENZ
+Das ursprüngliche Werkzeug wurde 2020 von Taras Zakharchenko
+entwickelt.
+KEncoder baut auf dem Upstream-Projekt
+.I player999/encoder_keyboard
+auf und steht unter der Lizenz BSD-3-Clause.
+.SH SIEHE AUCH
+.BR udev (7),
+.BR udevadm (8)

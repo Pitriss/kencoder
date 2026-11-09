@@ -42,6 +42,7 @@
 #include <QWidget>
 
 #include "lighting_status.h"
+#include "translation_loader.h"
 
 class KEncoderWindow final : public QWidget
 {
@@ -68,14 +69,14 @@ public:
 
         animation_ = new QComboBox(controls);
         animation_->setObjectName(QStringLiteral("animationMode"));
-        animation_->addItem(QStringLiteral("Statické"), QStringLiteral("static"));
-        animation_->addItem(QStringLiteral("Dýchání"), QStringLiteral("breathe"));
-        animation_->addItem(QStringLiteral("Vlna zleva"), QStringLiteral("left_wave"));
-        animation_->addItem(QStringLiteral("Vlna zprava"), QStringLiteral("right_wave"));
-        animation_->addItem(QStringLiteral("Reakce na stisk"), QStringLiteral("ripple"));
+        animation_->addItem(QCoreApplication::translate("KEncoder", "Statické"), QStringLiteral("static"));
+        animation_->addItem(QCoreApplication::translate("KEncoder", "Dýchání"), QStringLiteral("breathe"));
+        animation_->addItem(QCoreApplication::translate("KEncoder", "Vlna zleva"), QStringLiteral("left_wave"));
+        animation_->addItem(QCoreApplication::translate("KEncoder", "Vlna zprava"), QStringLiteral("right_wave"));
+        animation_->addItem(QCoreApplication::translate("KEncoder", "Reakce na stisk"), QStringLiteral("ripple"));
         // A readback of Wave cannot distinguish left from right.
-        animation_->addItem(QStringLiteral("Vlna (směr nezjištěn)"), QStringLiteral("wave"));
-        form->addRow(QStringLiteral("Animace:"), animation_);
+        animation_->addItem(QCoreApplication::translate("KEncoder", "Vlna (směr nezjištěn)"), QStringLiteral("wave"));
+        form->addRow(QCoreApplication::translate("KEncoder", "Animace:"), animation_);
 
         auto *brightnessRow = new QWidget(controls);
         auto *brightnessLayout = new QHBoxLayout(brightnessRow);
@@ -92,7 +93,7 @@ public:
         brightnessValue_->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
         brightnessValue_->setMinimumWidth(24);
         brightnessLayout->addWidget(brightnessValue_);
-        form->addRow(QStringLiteral("Jas (0 až 3):"), brightnessRow);
+        form->addRow(QCoreApplication::translate("KEncoder", "Jas (0 až 3):"), brightnessRow);
 
         auto *speedRow = new QWidget(controls);
         auto *speedLayout = new QHBoxLayout(speedRow);
@@ -109,30 +110,30 @@ public:
         speedValue_->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
         speedValue_->setMinimumWidth(70);
         speedLayout->addWidget(speedValue_);
-        speedCaption_ = new QLabel(QStringLiteral("Rychlost:"), controls);
+        speedCaption_ = new QLabel(QCoreApplication::translate("KEncoder", "Rychlost:"), controls);
         form->addRow(speedCaption_, speedRow);
         layout->addWidget(controls);
 
-        closeToTray_ = new QCheckBox(QStringLiteral("Zavřít do systémového panelu"), content);
+        closeToTray_ = new QCheckBox(QCoreApplication::translate("KEncoder", "Zavřít do systémového panelu"), content);
         closeToTray_->setObjectName(QStringLiteral("closeToTray"));
         closeToTray_->setChecked(QSettings().value(QStringLiteral("ui/closeToTray"), false).toBool());
         layout->addWidget(closeToTray_);
 
         auto *buttonRow = new QHBoxLayout();
-        auto *applyButton = makeButton(QStringLiteral("Nastavit"), buttonRow);
-        auto *offButton = makeButton(QStringLiteral("Vypnout"), buttonRow);
+        auto *applyButton = makeButton(QCoreApplication::translate("KEncoder", "Nastavit"), buttonRow);
+        auto *offButton = makeButton(QCoreApplication::translate("KEncoder", "Vypnout"), buttonRow);
         layout->addLayout(buttonRow);
 
         layout->addSpacing(12);
-        muteNotify_ = new QCheckBox(QStringLiteral("Vypnout světelné notifikace KEncoder Notify"), content);
+        muteNotify_ = new QCheckBox(QCoreApplication::translate("KEncoder", "Vypnout světelné notifikace KEncoder Notify"), content);
         muteNotify_->setObjectName(QStringLiteral("muteNotifyReactions"));
-        muteNotify_->setToolTip(QStringLiteral("Ztlumí světelné reakce KEncoder Notify. "
+        muteNotify_->setToolTip(QCoreApplication::translate("KEncoder", "Ztlumí světelné reakce KEncoder Notify. "
                                                 "Nemění systémová oznámení Plasma ani pravidla."));
         layout->addWidget(muteNotify_);
         syncMuteStatus();
 
         layout->addSpacing(12);
-        healthFrame_ = new QGroupBox(QStringLiteral("Stav"), content);
+        healthFrame_ = new QGroupBox(QCoreApplication::translate("KEncoder", "Stav"), content);
         healthFrame_->setObjectName(QStringLiteral("runtimeStatusGroup"));
         QFont titleFont = healthFrame_->font();
         titleFont.setBold(true);
@@ -169,7 +170,7 @@ public:
         healthRow->addWidget(healthText_, 1);
         healthLayout->addLayout(healthRow);
         layout->addWidget(healthFrame_);
-        auto *openSettings = new QPushButton(QStringLiteral("Otevřít ovládací panel"), content);
+        auto *openSettings = new QPushButton(QCoreApplication::translate("KEncoder", "Otevřít ovládací panel"), content);
         openSettings->setObjectName(QStringLiteral("openControlPanel"));
         layout->addWidget(openSettings);
         connect(openSettings, &QPushButton::clicked, this, [this] { openControlPanel(); });
@@ -179,7 +180,7 @@ public:
         deviceText_ = QStringLiteral("HP OMEN Encoder (03f0:3341)");
         statusField_ = new QLineEdit(this);
         statusField_->setObjectName(QStringLiteral("deviceStatusField"));
-        statusField_->setAccessibleName(QStringLiteral("Stav zařízení a zprávy"));
+        statusField_->setAccessibleName(QCoreApplication::translate("KEncoder", "Stav zařízení a zprávy"));
         statusField_->setReadOnly(true);
         statusField_->setFrame(true); // Native KDE sunken text field.
         statusField_->setText(lightingStateText_);
@@ -192,10 +193,10 @@ public:
         trayIcon_ = new QSystemTrayIcon(windowIcon(), this);
         trayIcon_->setToolTip(QStringLiteral("KEncoder"));
         auto *trayMenu = new QMenu(this);
-        trayToggleAction_ = trayMenu->addAction(QStringLiteral("Skrýt"), this,
+        trayToggleAction_ = trayMenu->addAction(QCoreApplication::translate("KEncoder", "Skrýt"), this,
                                               [this] { toggleFromTray(); });
         trayMenu->addSeparator();
-        trayMenu->addAction(QStringLiteral("Ukončit"), qApp, [] { QCoreApplication::quit(); });
+        trayMenu->addAction(QCoreApplication::translate("KEncoder", "Ukončit"), qApp, [] { QCoreApplication::quit(); });
         trayIcon_->setContextMenu(trayMenu);
         connect(trayIcon_, &QSystemTrayIcon::activated, this,
                 [this](QSystemTrayIcon::ActivationReason reason) {
@@ -225,7 +226,7 @@ public:
             if (!KEncoderNotify::loadMute(&previous, &error)) {
                 QSignalBlocker blocker(muteNotify_);
                 muteNotify_->setChecked(false);
-                showStatus(QStringLiteral("Nelze načíst ztlumení: %1").arg(error), 8000);
+                showStatus(QCoreApplication::translate("KEncoder", "Nelze načíst ztlumení: %1").arg(error), 8000);
                 return;
             }
             const auto bus = QDBusConnection::sessionBus();
@@ -247,14 +248,14 @@ public:
                     version.arguments().first().toUInt() != 1) {
                     QSignalBlocker blocker(muteNotify_);
                     muteNotify_->setChecked(previous);
-                    showStatus(QStringLiteral("Běží starý kencoder-notify. Nejdřív jej restartujte."), 8000);
+                    showStatus(QCoreApplication::translate("KEncoder", "Běží starý kencoder-notify. Nejdřív jej restartujte."), 8000);
                     return;
                 }
             }
             if (!KEncoderNotify::saveMute(checked, &error)) {
                 QSignalBlocker blocker(muteNotify_);
                 muteNotify_->setChecked(previous);
-                showStatus(QStringLiteral("Ztlumení nelze uložit: %1").arg(error), 8000);
+                showStatus(QCoreApplication::translate("KEncoder", "Ztlumení nelze uložit: %1").arg(error), 8000);
                 return;
             }
             if (running) {
@@ -270,18 +271,18 @@ public:
                     callDaemon(QStringLiteral("Reload"));
                     QSignalBlocker blocker(muteNotify_);
                     muteNotify_->setChecked(previous);
-                    showStatus(QStringLiteral("Služba nepotvrdila ztlumení; změna byla vrácena."), 8000);
+                    showStatus(QCoreApplication::translate("KEncoder", "Služba nepotvrdila ztlumení; změna byla vrácena."), 8000);
                     return;
                 }
             }
-            showStatus(checked ? QStringLiteral("Světelné notifikace jsou ztlumené.")
-                               : QStringLiteral("Ztlumení zrušeno; platí nastavení listeneru."), 6000);
+            showStatus(checked ? QCoreApplication::translate("KEncoder", "Světelné notifikace jsou ztlumené.")
+                               : QCoreApplication::translate("KEncoder", "Ztlumení zrušeno; platí nastavení listeneru."), 6000);
         });
         connect(closeToTray_, &QCheckBox::toggled, this, [this](bool checked) {
             QSettings().setValue(QStringLiteral("ui/closeToTray"), checked);
             updateTrayIcon();
             if (checked && !QSystemTrayIcon::isSystemTrayAvailable())
-                showStatus(QStringLiteral("Systémový panel není dostupný; "
+                showStatus(QCoreApplication::translate("KEncoder", "Systémový panel není dostupný; "
                                           "zavření okna aplikaci ukončí."), 8000);
         });
         updateSpeedEnabled();
@@ -289,21 +290,21 @@ public:
 
         connect(applyButton, &QPushButton::clicked, this, [this] {
             if (animation_->currentData().toString() == QLatin1String("wave")) {
-                showStatus(QStringLiteral("Před nastavením vlny zvolte její směr."), 7000);
+                showStatus(QCoreApplication::translate("KEncoder", "Před nastavením vlny zvolte její směr."), 7000);
                 return;
             }
             QStringList arguments{QStringLiteral("-b"), QString::number(brightness_->value())};
             if (animation_->currentData().toString() == QLatin1String("static")) {
                 arguments << QStringLiteral("-s");
-                run(arguments, QStringLiteral("Statické podsvícení nastaveno"));
+                run(arguments, QCoreApplication::translate("KEncoder", "Statické podsvícení nastaveno"));
             } else {
                 arguments << QStringLiteral("-a") << animation_->currentData().toString()
                           << QStringLiteral("-v") << speedArgument(speed_->value());
-                run(arguments, QStringLiteral("Animace nastavena"));
+                run(arguments, QCoreApplication::translate("KEncoder", "Animace nastavena"));
             }
         });
         connect(offButton, &QPushButton::clicked, this, [this] {
-            run({QStringLiteral("-o")}, QStringLiteral("Podsvícení vypnuto"));
+            run({QStringLiteral("-o")}, QCoreApplication::translate("KEncoder", "Podsvícení vypnuto"));
         });
 
         timeout_.setSingleShot(true);
@@ -316,8 +317,8 @@ public:
             if (timedOut_)
                 return; // Finished handler provides the more precise timeout reason.
             lastCommandError_ = error == QProcess::FailedToStart
-                ? QStringLiteral("Nelze spustit encoder. Zkontrolujte instalaci.")
-                : QStringLiteral("Chyba programu encoder: %1").arg(process_.errorString());
+                ? QCoreApplication::translate("KEncoder", "Nelze spustit encoder. Zkontrolujte instalaci.")
+                : QCoreApplication::translate("KEncoder", "Chyba programu encoder: %1").arg(process_.errorString());
             showStatus(lastCommandError_, 8000);
             refreshHealth();
             setBusy(false);
@@ -327,7 +328,7 @@ public:
             timeout_.stop();
             bool writeSucceeded = false;
             if (timedOut_) {
-                lastCommandError_ = QStringLiteral("Klávesnice neodpověděla do 8 sekund. "
+                lastCommandError_ = QCoreApplication::translate("KEncoder", "Klávesnice neodpověděla do 8 sekund. "
                                                    "Proces byl ukončen.");
             } else {
                 const QString stdoutText = QString::fromUtf8(process_.readAllStandardOutput()).trimmed();
@@ -336,10 +337,10 @@ public:
                     !stdoutText.contains(QStringLiteral("Command failed"))) {
                     writeSucceeded = true;
                     lastCommandError_.clear();
-                    showStatus(QStringLiteral("Odesláno: %1. Ověřuji stav…").arg(successMessage_), 5000);
+                    showStatus(QCoreApplication::translate("KEncoder", "Odesláno: %1. Ověřuji stav…").arg(successMessage_), 5000);
                 } else {
                     const QString detail = !stderrText.isEmpty() ? stderrText : stdoutText;
-                    lastCommandError_ = QStringLiteral("Příkaz selhal (kód %1). %2")
+                    lastCommandError_ = QCoreApplication::translate("KEncoder", "Příkaz selhal (kód %1). %2")
                         .arg(exitCode).arg(detail);
                 }
             }
@@ -360,7 +361,7 @@ public:
             if (error != QProcess::FailedToStart)
                 return; // Other errors are handled by finished().
             readTimeout_.stop();
-            setLightingStateText(QStringLiteral("Podsvícení: příkaz encoder nelze spustit."));
+            setLightingStateText(QCoreApplication::translate("KEncoder", "Podsvícení: příkaz encoder nelze spustit."));
             setBusy(false);
         });
         connect(&readProcess_, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
@@ -383,8 +384,8 @@ public:
                 }
             } else {
                 setLightingStateText(readTimedOut_
-                    ? QStringLiteral("Podsvícení: čtení překročilo časový limit.")
-                    : QStringLiteral("Podsvícení: stav nelze načíst (encoder --status --json)."));
+                    ? QCoreApplication::translate("KEncoder", "Podsvícení: čtení překročilo časový limit.")
+                    : QCoreApplication::translate("KEncoder", "Podsvícení: stav nelze načíst (encoder --status --json)."));
             }
             setBusy(false);
         });
@@ -399,7 +400,7 @@ public:
             healthPoll_.start();
             connect(&healthPoll_, &QTimer::timeout, this, [this] { syncMuteStatus(); });
         } else {
-            setHealth(HealthLevel::Warning, QStringLiteral("Diagnostika vynechána při self-testu."));
+            setHealth(HealthLevel::Warning, QCoreApplication::translate("KEncoder", "Diagnostika vynechána při self-testu."));
         }
     }
 
@@ -414,7 +415,7 @@ public:
         if (!require(!windowTitle().isEmpty(), "window title") ||
             !require(!windowIcon().isNull(), "embedded window icon") ||
             !require(buttons_.size() == 2, "button count") ||
-            !require(healthFrame_ && healthFrame_->title() == QLatin1String("Stav"),
+            !require(healthFrame_ && healthFrame_->title() == QCoreApplication::translate("KEncoder", "Stav"),
                      "status group title") ||
             !require(muteNotify_ && muteNotify_->objectName() == QLatin1String("muteNotifyReactions"),
                      "notification mute checkbox") ||
@@ -431,9 +432,9 @@ public:
             !require(statusField_ && statusField_->isReadOnly(), "read-only status field") ||
             !require(trayToggleAction_ != nullptr, "system tray action") ||
             !require(trayToggleAction_ &&
-                     trayToggleAction_->text() == QLatin1String("Zobrazit"),
+                     trayToggleAction_->text() == QCoreApplication::translate("KEncoder", "Zobrazit"),
                      "initial tray action") ||
-            !require(healthFrame_ && healthFrame_->title() == QLatin1String("Stav"),
+            !require(healthFrame_ && healthFrame_->title() == QCoreApplication::translate("KEncoder", "Stav"),
                      "status title") ||
             !require(statusField_ &&
                      statusField_->text() == lightingStateText_,
@@ -471,13 +472,13 @@ public:
         if (!require(!speed_->isEnabled() && !speedValue_->isEnabled() &&
                      !speedCaption_->isEnabled(), "static mode must disable speed"))
             return false;
-        setLightingStateText(QStringLiteral("Z klávesnice: Statické, jas 1. Rychlost nezjištěna."));
+        setLightingStateText(QCoreApplication::translate("KEncoder", "Z klávesnice: Statické, jas 1. Rychlost nezjištěna."));
         if (!require(statusField_->text() == lightingStateText_,
                      "hardware readback in bottom status field"))
             return false;
-        showStatus(QStringLiteral("Test zprávy"), 5000);
-        setLightingStateText(QStringLiteral("Z klávesnice: Statické, jas 2. Rychlost nezjištěna."));
-        if (!require(statusField_->text() == QStringLiteral("Test zprávy"),
+        showStatus(QCoreApplication::translate("KEncoder", "Test zprávy"), 5000);
+        setLightingStateText(QCoreApplication::translate("KEncoder", "Z klávesnice: Statické, jas 2. Rychlost nezjištěna."));
+        if (!require(statusField_->text() == QCoreApplication::translate("KEncoder", "Test zprávy"),
                      "temporary status overrides hardware state"))
             return false;
         if (!require(statusReset_.isActive(), "temporary status timer active"))
@@ -558,20 +559,20 @@ private:
             if (!executable.isEmpty() &&
                 QProcess::startDetached(executable, {QStringLiteral("kcm_kencoder")})) {
                 showStatus(program == QLatin1String("kcmshell6")
-                    ? QStringLiteral("Otevírám samostatné nastavení KEncoder.")
-                    : QStringLiteral("Otevírám Nastavení systému: KEncoder."), 6000);
+                    ? QCoreApplication::translate("KEncoder", "Otevírám samostatné nastavení KEncoder.")
+                    : QCoreApplication::translate("KEncoder", "Otevírám Nastavení systému: KEncoder."), 6000);
                 return;
             }
         }
-        showStatus(QStringLiteral("System Settings ani kcmshell6 nejsou dostupné."), 8000);
+        showStatus(QCoreApplication::translate("KEncoder", "System Settings ani kcmshell6 nejsou dostupné."), 8000);
     }
 
     static QString speedLabel(int index)
     {
         switch (index) {
-        case 0: return QStringLiteral("Pomalá");
-        case 2: return QStringLiteral("Rychlá");
-        default: return QStringLiteral("Střední");
+        case 0: return QCoreApplication::translate("KEncoder", "Pomalá");
+        case 2: return QCoreApplication::translate("KEncoder", "Rychlá");
+        default: return QCoreApplication::translate("KEncoder", "Střední");
         }
     }
 
@@ -591,11 +592,11 @@ private:
             return;
         const QString cli = QStandardPaths::findExecutable(QStringLiteral("encoder"));
         if (cli.isEmpty()) {
-            setLightingStateText(QStringLiteral("Podsvícení: příkaz encoder není dostupný."));
+            setLightingStateText(QCoreApplication::translate("KEncoder", "Podsvícení: příkaz encoder není dostupný."));
             return;
         }
         readTimedOut_ = false;
-        setLightingStateText(QStringLiteral("Zjišťuji skutečný stav klávesnice…"));
+        setLightingStateText(QCoreApplication::translate("KEncoder", "Zjišťuji skutečný stav klávesnice…"));
         setBusy(true);
         readProcess_.start(cli, {QStringLiteral("--status"), QStringLiteral("--json")});
         readTimeout_.start(4000);
@@ -618,7 +619,7 @@ private:
     void updateTrayActionText()
     {
         trayToggleAction_->setText(isVisible() && !isMinimized()
-            ? QStringLiteral("Skrýt") : QStringLiteral("Zobrazit"));
+            ? QCoreApplication::translate("KEncoder", "Skrýt") : QCoreApplication::translate("KEncoder", "Zobrazit"));
     }
 
     void toggleFromTray()
@@ -769,9 +770,9 @@ private:
     {
         const char *color = level == HealthLevel::Good ? "#209c60"
                           : level == HealthLevel::Warning ? "#d68b16" : "#d63c43";
-        const QString name = level == HealthLevel::Good ? QStringLiteral("V pořádku")
-                             : level == HealthLevel::Warning ? QStringLiteral("Upozornění")
-                             : QStringLiteral("Problém");
+        const QString name = level == HealthLevel::Good ? QCoreApplication::translate("KEncoder", "V pořádku")
+                             : level == HealthLevel::Warning ? QCoreApplication::translate("KEncoder", "Upozornění")
+                             : QCoreApplication::translate("KEncoder", "Problém");
         healthLed_->setStyleSheet(QStringLiteral("background-color: %1; border-radius: 6px;")
                                   .arg(QString::fromLatin1(color)));
         healthLed_->setAccessibleName(name);
@@ -787,7 +788,7 @@ private:
         const bool hasDevice = !node.isEmpty();
         deviceText_ = hasDevice
             ? QStringLiteral("HP OMEN Encoder (03f0:3341) | ") + node
-            : QStringLiteral("HP OMEN Encoder (03f0:3341) | nepřipojeno");
+            : QCoreApplication::translate("KEncoder", "HP OMEN Encoder (03f0:3341) | nepřipojeno");
         if (!statusReset_.isActive())
             restoreDeviceStatus();
 
@@ -807,19 +808,19 @@ private:
         if (!lastCommandError_.isEmpty())
             message = lastCommandError_;
         else if (!hasCli)
-            message = QStringLiteral("Chybí CLI encoder. Nainstalujte balíček encoder.");
+            message = QCoreApplication::translate("KEncoder", "Chybí CLI encoder. Nainstalujte balíček encoder.");
         else if (!hasDevice)
-            message = QStringLiteral("Klávesnice HP OMEN Encoder není připojena.");
+            message = QCoreApplication::translate("KEncoder", "Klávesnice HP OMEN Encoder není připojena.");
         else if (!hasRule)
-            message = QStringLiteral("Chybí udev pravidlo 70-encoder-uaccess.rules nebo 99-encoder.rules.");
+            message = QCoreApplication::translate("KEncoder", "Chybí udev pravidlo 70-encoder-uaccess.rules nebo 99-encoder.rules.");
         else if (!hasTag)
             message = udevQueryOk
-                ? QStringLiteral("udev pravidlo není aplikováno. Znovu připojte klávesnici.")
-                : QStringLiteral("Nelze ověřit stav udev. Zkontrolujte udevadm.");
+                ? QCoreApplication::translate("KEncoder", "udev pravidlo není aplikováno. Znovu připojte klávesnici.")
+                : QCoreApplication::translate("KEncoder", "Nelze ověřit stav udev. Zkontrolujte udevadm.");
         else if (!accessible)
-            message = QStringLiteral("Nelze otevřít %1 pro čtení a zápis. Zkontrolujte oprávnění.").arg(node);
+            message = QCoreApplication::translate("KEncoder", "Nelze otevřít %1 pro čtení a zápis. Zkontrolujte oprávnění.").arg(node);
         else
-            message = QStringLiteral("Připraveno: CLI, udev a přístup ke klávesnici jsou funkční.");
+            message = QCoreApplication::translate("KEncoder", "Připraveno: CLI, udev a přístup ke klávesnici jsou funkční.");
         setHealth(level, message);
     }
 
@@ -829,7 +830,7 @@ private:
             readProcess_.state() != QProcess::NotRunning)
             return;
         if (QStandardPaths::findExecutable(QStringLiteral("encoder")).isEmpty()) {
-            lastCommandError_ = QStringLiteral("Chybí CLI encoder. Nainstalujte balíček encoder.");
+            lastCommandError_ = QCoreApplication::translate("KEncoder", "Chybí CLI encoder. Nainstalujte balíček encoder.");
             showStatus(lastCommandError_, 8000);
             refreshHealth();
             return;
@@ -838,7 +839,7 @@ private:
         successMessage_ = successMessage;
         editorTouched_ = false; // Resync only if the user does not edit during the write.
         timedOut_ = false;
-        showStatus(QStringLiteral("Odesílám nastavení do klávesnice…"), 10000);
+        showStatus(QCoreApplication::translate("KEncoder", "Odesílám nastavení do klávesnice…"), 10000);
         setBusy(true);
         process_.start(QStringLiteral("encoder"), arguments);
         timeout_.start(8000);
@@ -859,7 +860,7 @@ private:
     QLabel *healthText_ = nullptr;
     QLineEdit *statusField_ = nullptr;
     QString deviceText_;
-    QString lightingStateText_ = QStringLiteral("Podsvícení: stav neznámý.");
+    QString lightingStateText_ = QCoreApplication::translate("KEncoder", "Podsvícení: stav neznámý.");
     QTimer statusReset_;
     QList<QPushButton *> buttons_;
     QProcess process_;
@@ -878,6 +879,7 @@ private:
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);
+    KEncoderTranslation::install();
     app.setApplicationName(QStringLiteral("kencoder"));
     app.setOrganizationName(QStringLiteral("Pitriss"));
     KEncoderWindow window;

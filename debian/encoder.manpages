@@ -1,1 +1,7 @@
 docs/man/man1/encoder.1
+build/manpages/encoder.en.1
+build/manpages/encoder.sk.1
+build/manpages/encoder.uk.1
+build/manpages/encoder.de.1
+build/manpages/encoder.ru.1
+build/manpages/encoder.pl.1

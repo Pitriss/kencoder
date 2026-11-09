@@ -1,0 +1,164 @@
+.TH ENCODER 1 "2026-11-06" "KEncoder" "Používateľské príkazy"
+.SH NÁZOV
+encoder \- ovládanie podsvietenia klávesnice HP OMEN Encoder z príkazového
+riadka
+.SH POUŽITIE
+.B encoder
+.RB [ \-b " " 0|1|2|3 ]
+.RB [ \-s | \-o | \-a " " REŽIM ]
+.RB [ \-v " " RÝCHLOSŤ ]
+.br
+.B encoder --status [--json]
+.br
+.B encoder -h
+.SH POPIS
+.B encoder
+nastavuje jas a režim podsvietenia klávesnice HP OMEN Encoder (USB
+VID:PID 03f0:3341) cez rozhranie Linux HID raw.
+Ponúka statické podsvietenie, vypnutie svetiel a niekoľko animácií.
+.PP
+Program vyhľadá zodpovedajúce zariadenie
+.I /dev/hidrawX
+podľa identifikátorov USB a veľkosti deskriptora HID reportu.
+Na komunikáciu potrebuje oprávnenie na čítanie aj zápis.
+Bežné príkazy menia nastavenie zariadenia. Voľba
+.B --status
+naopak číta aktuálne hlásený jas a skupinu efektu bez zmeny
+podsvietenia.
+Smer vlny a rýchlosť animácie zatiaľ nemožno prečítať.
+.SH VOĽBY
+.TP
+.B --status
+Vykoná iba čítací dotaz GetDeviceInfo (80 01) bez odoslania príkazov
+na nastavenie jasu alebo efektu.
+Vráti stav zapnuté/vypnuté, jas 0 až 3 a skupinu efektu. Smer vlny a
+rýchlosť animácie zostávajú neznáme.
+Nemožno kombinovať s prepínačmi na zápis.
+.TP
+.B --json
+Spolu s --status vypíše strojovo čitateľný JSON.
+Polia direction a speed majú vždy hodnotu null; pole source má
+hodnotu hardware.
+.TP
+.B \-h
+Zobrazí stručného pomocníka a skončí. Pripojená klávesnica nie je
+potrebná.
+.TP
+.B \-s
+Zapne statické podsvietenie klávesov.
+.TP
+.B \-o
+Vypne podsvietenie.
+.TP
+.BI \-b " ÚROVEŇ"
+Nastaví jas na 0, 1, 2 alebo 3. Vyššia hodnota znamená vyšší jas.
+Ak voľba nie je zadaná, súčasná implementácia používa úroveň 3.
+Jas možno nastaviť aj samostatne bez zmeny režimu podsvietenia.
+.TP
+.BI \-a " REŽIM"
+Nastaví animáciu. Podporované hodnoty:
+.RS
+.TP
+.B ripple
+Vlnenie (ripple).
+.TP
+.B left_wave
+Vlna zľava.
+.TP
+.B right_wave
+Vlna sprava.
+.TP
+.B breathe
+Pulzovanie (dýchanie).
+.RE
+.TP
+.BI \-v " RÝCHLOSŤ"
+Rýchlosť animácie: slow, medium alebo fast.
+Predvolená hodnota je slow.
+Uplatní sa iba s voľbou -a; samostatné nastavenie rýchlosti bez
+animácie nemá viditeľný účinok.
+.SH PRÍKLADY
+.TP
+.B encoder -b 1 -s
+Nastaví jas 1 a zapne statické podsvietenie.
+.TP
+.B encoder -b 3 -a ripple -v fast
+Nastaví jas 3 a rýchle vlnenie.
+.TP
+.B encoder -a left_wave -v medium
+Spustí stredne rýchlu vlnu zľava; bez voľby -b sa použije jas 3.
+.TP
+.B encoder -b 2
+Nastaví iba jas 2 bez príkazu na zmenu režimu.
+.TP
+.B encoder -o
+Vypne podsvietenie.
+.TP
+.B encoder -h
+Vypíše pomocníka.
+.SH PORADIE A KOMBINÁCIE VOLIEB
+Program najskôr odošle nastavenie jasu a až potom príkaz na
+vypnutie, statický režim alebo animáciu.
+Platí to aj pri použití -o alebo spustení bez volieb.
+Ak sa naraz použije viac prepínačov režimu, prednosť má -o, potom -s
+a nakoniec -a. Na jednoznačné správanie používajte iba jeden
+prepínač režimu.
+.PP
+Neznáme argumenty alebo nepodporované hodnoty nie sú v súčasnej
+implementácii vždy hlásené ako chyba.
+Voľba --status používa samostatnú čítaciu cestu a neposiela príkazy
+na nastavenie svetiel.
+.SH OPRÁVNENIA A ZARIADENIE
+.B encoder
+otvára zodpovedajúce rozhranie
+.I /dev/hidrawX
+na čítanie a zápis.
+Prístup môže zabezpečiť pravidlo udev dodávané balíkom encoder alebo
+oprávnenia správcu systému.
+Ak klávesnica nie je pripojená, rozhranie sa nenašlo alebo je
+prístup odmietnutý, program vypíše:
+.PP
+.nf
+OMEN Encoder keyboard not found or access denied
+.fi
+.PP
+Pri problémoch skontrolujte pripojenie klávesnice a oprávnenia
+príslušného zariadenia HID raw. Cesta
+.I /dev/hidrawX
+sa môže po opätovnom pripojení zmeniť.
+.SH NÁVRATOVÉ KÓDY
+.TP
+.B 0
+Pomocník bol vypísaný alebo sa požiadavka spracovala bez chyby pri
+otvorení zariadenia.
+V súčasnej implementácii kód 0 nemusí znamenať, že zariadenie
+skutočne potvrdilo všetky príkazy HID.
+.TP
+.B 1
+Zodpovedajúcu klávesnicu sa nepodarilo otvoriť (nenájdená alebo
+prístup odmietnutý). V čítacom režime tiež chyba komunikácie alebo
+nepodporovaný formát odpovede.
+.TP
+.B 2
+Neplatná kombinácia prepínačov s --status alebo --json.
+.PP
+Zlyhanie komunikácie pri starších zapisovacích príkazoch sa môže
+vypísať ako
+.B Command failed
+bez zodpovedajúceho nenulového návratového kódu. Čítací režim
+vypisuje chyby na štandardný chybový výstup.
+.SH SÚBORY
+.TP
+.I /dev/hidrawX
+Rozhranie HID raw kompatibilnej klávesnice.
+.TP
+.I /usr/lib/udev/rules.d/
+Pravidlá pre prístup k zariadeniu inštalované balíkom.
+.SH AUTORI A LICENCIA
+Pôvodný nástroj vytvoril Taras Zakharchenko (2020).
+Projekt KEncoder nadväzuje na upstream
+.I player999/encoder_keyboard
+pod licenciou BSD-3-Clause.
+.SH POZRI TIEŽ
+.BR udev (7),
+.BR udevadm (8)

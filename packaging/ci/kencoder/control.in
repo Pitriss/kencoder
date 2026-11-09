@@ -2,7 +2,7 @@ Source: kencoder
 Section: utils
 Priority: optional
 Maintainer: Pitriss <5106460+Pitriss@users.noreply.github.com>
-Build-Depends: debhelper-compat (= 13), cmake, qt6-base-dev, qt6-declarative-dev, extra-cmake-modules, libkf6kcmutils-dev
+Build-Depends: debhelper-compat (= 13), cmake, qt6-base-dev, qt6-declarative-dev, extra-cmake-modules, libkf6kcmutils-dev, qt6-l10n-tools
 Standards-Version: 4.7.0
 Rules-Requires-Root: no
 Homepage: https://github.com/Pitriss/kencoder

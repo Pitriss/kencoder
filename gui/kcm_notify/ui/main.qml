@@ -31,8 +31,8 @@ KCM.SimpleKCM {
     }
     function showListenerHint() {
         root.showStatus(backendCombo.currentValue === "kde-watcher"
-            ? "Vybrán listener KDE watcher. Dostupnost se ověří při spuštění; změny potvrďte tlačítkem Použít."
-            : "Listener KNotify scanner je plánován pro fázi 2 a nyní jej nelze aktivovat.")
+            ? qsTr("Vybrán listener KDE watcher. Dostupnost se ověří při spuštění; změny potvrďte tlačítkem Použít.")
+            : qsTr("Listener KNotify scanner je plánován pro fázi 2 a nyní jej nelze aktivovat."))
     }
 
     function presetById(id) {
@@ -49,14 +49,14 @@ KCM.SimpleKCM {
     }
     function stepDescription(s, isDefault) {
         const names = {
-            "off": "Vypnout", "static": "Statické", "breathe": "Dýchání",
-            "ripple": "Reakce na stisk", "left_wave": "Vlna zleva →",
-            "right_wave": "Vlna zprava ←", "wait": "Čekat"
+            "off": qsTr("Vypnout"), "static": qsTr("Statické"), "breathe": qsTr("Dýchání"),
+            "ripple": qsTr("Reakce na stisk"), "left_wave": qsTr("Vlna zleva →"),
+            "right_wave": qsTr("Vlna zprava ←"), "wait": qsTr("Čekat")
         }
         let extra = ""
-        if (s.type !== "wait" && s.type !== "off") extra += " · jas " + s.brightness
+        if (s.type !== "wait" && s.type !== "off") extra += qsTr(" · jas ") + s.brightness
         if (s.type !== "wait" && s.type !== "off" && s.type !== "static")
-            extra += " · rychlost " + s.speed
+            extra += qsTr(" · rychlost ") + s.speed
         return (names[s.type] || s.type) + extra + (isDefault ? "" : " · " + s.duration_ms + " ms")
     }
     function stepIsAnimated(type) {
@@ -74,21 +74,21 @@ KCM.SimpleKCM {
         }
         Controls.CheckBox {
             id: enabledCheck
-            text: "Aktivovat naslouchání notifikacím"
+            text: qsTr("Aktivovat naslouchání notifikacím")
             checked: kcm.listeningEnabled
             Layout.fillWidth: true
-            onClicked: root.showStatus("Změna listeneru čeká na potvrzení tlačítkem Použít nastavení listeneru.")
+            onClicked: root.showStatus(qsTr("Změna listeneru čeká na potvrzení tlačítkem Použít nastavení listeneru."))
         }
         Controls.ComboBox {
                 id: backendCombo
                 Layout.fillWidth: true
-                Accessible.name: "Režim listeneru"
+                Accessible.name: qsTr("Režim listeneru")
                 onActivated: root.showListenerHint()
                 textRole: "label"
                 valueRole: "value"
                 model: [
-                    { label: "Listener KDE watcher", value: "kde-watcher" },
-                    { label: "Listener KNotify scanner (fáze 2)", value: "knotify-scanner" }
+                    { label: qsTr("Listener KDE watcher"), value: "kde-watcher" },
+                    { label: qsTr("Listener KNotify scanner (fáze 2)"), value: "knotify-scanner" }
                 ]
                 currentIndex: kcm.backend === "knotify-scanner" ? 1 : 0
                 delegate: Controls.ItemDelegate {
@@ -104,7 +104,7 @@ KCM.SimpleKCM {
                 }
         }
         Controls.Button {
-            text: "Použít nastavení listeneru"
+            text: qsTr("Použít nastavení listeneru")
             Layout.alignment: Qt.AlignLeft
             onClicked: kcm.applyEssentials(enabledCheck.checked, backendCombo.currentValue)
         }
@@ -130,7 +130,7 @@ KCM.SimpleKCM {
                     anchors.rightMargin: Kirigami.Units.smallSpacing
                     anchors.verticalCenter: parent.verticalCenter
                     height: 1
-                    color: Kirigami.Theme.separatorColor
+                    color: Kirigami.Theme.textColor
                     opacity: splitterHover.hovered ? 0.8 : 0.45
                 }
                 Row {
@@ -154,7 +154,7 @@ KCM.SimpleKCM {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     height: 1
-                    color: Kirigami.Theme.separatorColor
+                    color: Kirigami.Theme.textColor
                     opacity: splitterHover.hovered ? 0.8 : 0.45
                 }
             }
@@ -165,12 +165,12 @@ KCM.SimpleKCM {
                 RowLayout {
                     Layout.fillWidth: true
                     Controls.Label {
-                        text: "Presety světelných sekvencí"
+                        text: qsTr("Presety světelných sekvencí")
                         font.bold: true
                         Layout.fillWidth: true
                     }
                     Controls.Button {
-                        text: "Nový preset"
+                        text: qsTr("Nový preset")
                         onClicked: presetDialog.edit("")
                     }
                 }
@@ -187,8 +187,8 @@ KCM.SimpleKCM {
                         delegate: Controls.ItemDelegate {
                             width: presetsView.width
                             text: modelData.id === root.defaultPresetId
-                                ? "Default (návratový stav)"
-                                : modelData.name + " (" + modelData.steps.length + " kroků)"
+                                ? qsTr("Default (návratový stav)")
+                                : modelData.name + " (" + modelData.steps.length + qsTr(" kroků)")
                             highlighted: root.selectedPresetId === modelData.id
                             onClicked: root.selectedPresetId = modelData.id
                         }
@@ -197,17 +197,17 @@ KCM.SimpleKCM {
                 RowLayout {
                     Layout.fillWidth: true
                     Controls.Button {
-                        text: "Přehrát"
+                        text: qsTr("Přehrát")
                         enabled: root.selectedPresetId !== "" && !kcm.busy
                         onClicked: kcm.playPreset(root.selectedPresetId)
                     }
                     Controls.Button {
-                        text: "Upravit"
+                        text: qsTr("Upravit")
                         enabled: root.selectedPresetId !== ""
                         onClicked: presetDialog.edit(root.selectedPresetId)
                     }
                     Controls.Button {
-                        text: "Smazat"
+                        text: qsTr("Smazat")
                         enabled: root.selectedPresetId !== "" && root.selectedPresetId !== root.defaultPresetId
                         onClicked: {
                             confirmDialog.isPreset = true
@@ -225,12 +225,12 @@ KCM.SimpleKCM {
                 RowLayout {
                     Layout.fillWidth: true
                     Controls.Label {
-                        text: "Pravidla reakcí na notifikace"
+                        text: qsTr("Pravidla reakcí na notifikace")
                         font.bold: true
                         Layout.fillWidth: true
                     }
                     Controls.Button {
-                        text: "Nové pravidlo"
+                        text: qsTr("Nové pravidlo")
                         enabled: kcm.presets.length > 0
                         onClicked: ruleDialog.edit("")
                     }
@@ -293,9 +293,9 @@ KCM.SimpleKCM {
                                 Controls.ToolButton {
                                     id: dragGrip
                                     text: "⠿"
-                                    Accessible.name: "Přetáhnout pravidlo myší"
+                                    Accessible.name: qsTr("Přetáhnout pravidlo myší")
                                     Controls.ToolTip.visible: dragMouse.containsMouse && !dragMouse.pressed
-                                    Controls.ToolTip.text: "Přetáhnout pro změnu priority"
+                                    Controls.ToolTip.text: qsTr("Přetáhnout pro změnu priority")
                                     Controls.ToolTip.delay: 700
                                     MouseArea {
                                         id: dragMouse
@@ -340,7 +340,7 @@ KCM.SimpleKCM {
                                 Controls.ToolButton {
                                     text: "↑"
                                     enabled: index > 0
-                                    Accessible.name: "Přesunout pravidlo nahoru"
+                                    Accessible.name: qsTr("Přesunout pravidlo nahoru")
                                     onClicked: {
                                         if (kcm.moveRule(modelData.id, -1))
                                             root.selectedRuleId = modelData.id
@@ -349,7 +349,7 @@ KCM.SimpleKCM {
                                 Controls.ToolButton {
                                     text: "↓"
                                     enabled: index < rulesView.count - 1
-                                    Accessible.name: "Přesunout pravidlo dolů"
+                                    Accessible.name: qsTr("Přesunout pravidlo dolů")
                                     onClicked: {
                                         if (kcm.moveRule(modelData.id, 1))
                                             root.selectedRuleId = modelData.id
@@ -363,12 +363,12 @@ KCM.SimpleKCM {
                 RowLayout {
                     Layout.fillWidth: true
                     Controls.Button {
-                        text: "Upravit"
+                        text: qsTr("Upravit")
                         enabled: root.selectedRuleId !== ""
                         onClicked: ruleDialog.edit(root.selectedRuleId)
                     }
                     Controls.Button {
-                        text: "Smazat"
+                        text: qsTr("Smazat")
                         enabled: root.selectedRuleId !== ""
                         onClicked: {
                             confirmDialog.isPreset = false
@@ -388,7 +388,7 @@ KCM.SimpleKCM {
             Controls.Label {
                 anchors.fill: parent
                 text: root.uiStatus.length > 0 ? root.uiStatus
-                     : (kcm.listeningEnabled ? "Listener: povolen" : "Listener: vypnut")
+                     : (kcm.listeningEnabled ? qsTr("Listener: povolen") : qsTr("Listener: vypnut"))
                 font.bold: root.uiStatus.length === 0
                 wrapMode: Text.WordWrap
                 maximumLineCount: 3
@@ -406,7 +406,7 @@ KCM.SimpleKCM {
         y: Math.max(0, (root.height - height) / 2)
         width: Math.min(root.width * 0.9, Kirigami.Units.gridUnit * 35)
         height: Math.min(root.height * 0.9, Kirigami.Units.gridUnit * 36)
-        title: editingId === "" ? "Nový preset" : "Upravit preset"
+        title: editingId === "" ? qsTr("Nový preset") : qsTr("Upravit preset")
         property string editingId: ""
         readonly property bool isDefault: editingId === root.defaultPresetId
         property int editingStepIndex: -1
@@ -481,13 +481,13 @@ KCM.SimpleKCM {
             Controls.TextField {
                 id: presetName
                 Layout.fillWidth: true
-                placeholderText: "Název presetu"
+                placeholderText: qsTr("Název presetu")
                 readOnly: presetDialog.isDefault
             }
             Controls.Label {
                 text: presetDialog.isDefault
-                    ? "Default: použije se pouze první krok, bez čekání na jeho trvání."
-                    : "Pořadí kroků (opakování je možné přidáním stejného kroku):"
+                    ? qsTr("Default: použije se pouze první krok, bez čekání na jeho trvání.")
+                    : qsTr("Pořadí kroků (opakování je možné přidáním stejného kroku):")
                 wrapMode: Text.WordWrap
             }
             Controls.ScrollView {
@@ -506,7 +506,7 @@ KCM.SimpleKCM {
                             elide: Text.ElideRight
                         }
                         Controls.Button {
-                            text: "Upravit"
+                            text: qsTr("Upravit")
                             onClicked: presetDialog.editStep(index)
                         }
                         Controls.Button {
@@ -532,7 +532,7 @@ KCM.SimpleKCM {
             RowLayout {
                 Layout.fillWidth: true
                 Controls.Label {
-                    text: "Efekt:"
+                    text: qsTr("Efekt:")
                     Layout.preferredWidth: presetDialog.fieldLabelWidth
                 }
                 Controls.ComboBox {
@@ -541,13 +541,13 @@ KCM.SimpleKCM {
                 textRole: "label"
                 valueRole: "value"
                 model: [
-                    {label: "Statické", value: "static"},
-                    {label: "Vypnout", value: "off"},
-                    {label: "Vlna zleva →", value: "left_wave"},
-                    {label: "Vlna zprava ←", value: "right_wave"},
-                    {label: "Dýchání", value: "breathe"},
-                    {label: "Reakce na stisk", value: "ripple"},
-                    {label: "Čekat bez příkazu", value: "wait"}
+                    {label: qsTr("Statické"), value: "static"},
+                    {label: qsTr("Vypnout"), value: "off"},
+                    {label: qsTr("Vlna zleva →"), value: "left_wave"},
+                    {label: qsTr("Vlna zprava ←"), value: "right_wave"},
+                    {label: qsTr("Dýchání"), value: "breathe"},
+                    {label: qsTr("Reakce na stisk"), value: "ripple"},
+                    {label: qsTr("Čekat bez příkazu"), value: "wait"}
                 ]
                 delegate: Controls.ItemDelegate {
                     width: stepType.width
@@ -567,7 +567,7 @@ KCM.SimpleKCM {
                 RowLayout {
                     Layout.fillWidth: true
                     Controls.Label {
-                        text: "Jas:"
+                        text: qsTr("Jas:")
                         Layout.preferredWidth: presetDialog.fieldLabelWidth
                     }
                     Controls.ComboBox {
@@ -586,7 +586,7 @@ KCM.SimpleKCM {
                 RowLayout {
                     Layout.fillWidth: true
                     Controls.Label {
-                        text: "Rychlost:"
+                        text: qsTr("Rychlost:")
                         Layout.preferredWidth: presetDialog.fieldLabelWidth
                     }
                     Controls.ComboBox {
@@ -597,9 +597,9 @@ KCM.SimpleKCM {
                         currentIndex: 1
                         enabled: root.stepIsAnimated(stepType.currentValue)
                         model: [
-                            {label: "Pomalá", value: 1},
-                            {label: "Střední", value: 2},
-                            {label: "Rychlá", value: 3}
+                            {label: qsTr("Pomalá"), value: 1},
+                            {label: qsTr("Střední"), value: 2},
+                            {label: qsTr("Rychlá"), value: 3}
                         ]
                     }
                 }
@@ -607,7 +607,7 @@ KCM.SimpleKCM {
             RowLayout {
                 Layout.fillWidth: true
                 Controls.Label {
-                    text: "Trvání:"
+                    text: qsTr("Trvání:")
                     Layout.preferredWidth: presetDialog.fieldLabelWidth
                     visible: !presetDialog.isDefault
                 }
@@ -617,22 +617,22 @@ KCM.SimpleKCM {
                     visible: !presetDialog.isDefault
                 }
                 Controls.Button {
-                    text: presetDialog.editingStepIndex >= 0 ? "Uložit krok" : "Přidat krok"
+                    text: presetDialog.editingStepIndex >= 0 ? qsTr("Uložit krok") : qsTr("Přidat krok")
                     enabled: !presetDialog.isDefault || presetDialog.editingStepIndex >= 0 ||
                              presetDialog.draftSteps.length === 0
                     onClicked: presetDialog.addStep()
                 }
                 Controls.Button {
-                    text: "Zrušit úpravu"
+                    text: qsTr("Zrušit úpravu")
                     visible: presetDialog.editingStepIndex >= 0 && !presetDialog.isDefault
                     onClicked: presetDialog.editingStepIndex = -1
                 }
             }
             RowLayout {
                 Layout.alignment: Qt.AlignRight
-                Controls.Button { text: "Zrušit"; onClicked: presetDialog.close() }
+                Controls.Button { text: qsTr("Zrušit"); onClicked: presetDialog.close() }
                 Controls.Button {
-                    text: "Uložit preset"
+                    text: qsTr("Uložit preset")
                     enabled: presetName.text.trim().length > 0 && presetDialog.draftSteps.length > 0
                     onClicked: {
                         if (presetDialog.editingStepIndex >= 0)
@@ -648,7 +648,7 @@ KCM.SimpleKCM {
             RowLayout {
                 Layout.fillWidth: true
                 Item { Layout.fillWidth: true }
-                Controls.Label { text: "Změnit velikost"; color: Kirigami.Theme.disabledTextColor }
+                Controls.Label { text: qsTr("Změnit velikost"); color: Kirigami.Theme.disabledTextColor }
                 Item {
                     Layout.preferredWidth: Kirigami.Units.gridUnit
                     Layout.preferredHeight: Kirigami.Units.gridUnit
@@ -691,7 +691,7 @@ KCM.SimpleKCM {
         y: Math.max(0, (root.height - height) / 2)
         width: Math.min(root.width * 0.9, Kirigami.Units.gridUnit * 31)
         height: Math.min(root.height * 0.83, Kirigami.Units.gridUnit * 28)
-        title: editingId === "" ? "Nové pravidlo" : "Upravit pravidlo"
+        title: editingId === "" ? qsTr("Nové pravidlo") : qsTr("Upravit pravidlo")
         property string editingId: ""
         function edit(id) {
             editingId = id
@@ -713,27 +713,27 @@ KCM.SimpleKCM {
             spacing: Kirigami.Units.smallSpacing
             Controls.TextField {
                 id: ruleName
-                placeholderText: "Název pravidla"
+                placeholderText: qsTr("Název pravidla")
                 Layout.fillWidth: true
             }
-            Controls.CheckBox { id: ruleEnabled; text: "Pravidlo je aktivní"; checked: true }
-            Controls.Label { text: "Podmínky (nerozlišují velikost písmen):" }
+            Controls.CheckBox { id: ruleEnabled; text: qsTr("Pravidlo je aktivní"); checked: true }
+            Controls.Label { text: qsTr("Podmínky (nerozlišují velikost písmen):") }
             Controls.TextField {
                 id: matchApp
                 Layout.fillWidth: true
-                placeholderText: "Aplikace obsahuje: Teams"
+                placeholderText: qsTr("Aplikace obsahuje: Teams")
             }
             Controls.TextField {
                 id: matchTitle
                 Layout.fillWidth: true
-                placeholderText: "Titulek obsahuje (nepovinné)"
+                placeholderText: qsTr("Titulek obsahuje (nepovinné)")
             }
             Controls.TextField {
                 id: matchBody
                 Layout.fillWidth: true
-                placeholderText: "Zpráva obsahuje: XYZ"
+                placeholderText: qsTr("Zpráva obsahuje: XYZ")
             }
-            Controls.Label { text: "Spustit preset:" }
+            Controls.Label { text: qsTr("Spustit preset:") }
             Controls.ComboBox {
                 id: rulePreset
                 Layout.fillWidth: true
@@ -742,7 +742,7 @@ KCM.SimpleKCM {
                 valueRole: "id"
             }
             RowLayout {
-                Controls.Label { text: "Ochranná prodleva (ms):" }
+                Controls.Label { text: qsTr("Ochranná prodleva (ms):") }
                 Controls.SpinBox {
                     id: cooldown
                     from: 0; to: 3600000; stepSize: 1000; value: 5000
@@ -751,9 +751,9 @@ KCM.SimpleKCM {
             Item { Layout.fillHeight: true }
             RowLayout {
                 Layout.alignment: Qt.AlignRight
-                Controls.Button { text: "Zrušit"; onClicked: ruleDialog.close() }
+                Controls.Button { text: qsTr("Zrušit"); onClicked: ruleDialog.close() }
                 Controls.Button {
-                    text: "Uložit pravidlo"
+                    text: qsTr("Uložit pravidlo")
                     enabled: ruleName.text.trim().length > 0 && rulePreset.currentIndex >= 0 &&
                              (matchApp.text.length > 0 || matchTitle.text.length > 0 || matchBody.text.length > 0)
                     onClicked: {
@@ -773,9 +773,11 @@ KCM.SimpleKCM {
         id: confirmDialog
         modal: true
         parent: Controls.Overlay.overlay
-        title: "Opravdu smazat?"
+        title: qsTr("Opravdu smazat?")
         property bool isPreset: true
         property string deleteId: ""
+        // Explicit implicit width avoids a cycle in the KDE desktop dialog style.
+        implicitWidth: Kirigami.Units.gridUnit * 22
         standardButtons: Controls.Dialog.Yes | Controls.Dialog.No
         onAccepted: {
             if (isPreset) {
@@ -785,7 +787,7 @@ KCM.SimpleKCM {
             }
         }
         Controls.Label {
-            text: confirmDialog.isPreset ? "Odstranit vybraný preset?" : "Odstranit vybrané pravidlo?"
+            text: confirmDialog.isPreset ? qsTr("Odstranit vybraný preset?") : qsTr("Odstranit vybrané pravidlo?")
         }
     }
 }

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright 2026 Pitriss
+#include <QCoreApplication>
 #include "../../notify/config.h"
+#include "../translation_loader.h"
 
 #include <KPluginFactory>
 #include <KQuickConfigModule>
@@ -26,19 +28,20 @@ public:
     KEncoderNotifyKcm(QObject *parent, const KPluginMetaData &metaData)
         : KQuickConfigModule(parent, metaData)
     {
+        KEncoderTranslation::install();
         setButtons(NoAdditionalButton); // All writes require explicit UI buttons.
         setNeedsSave(false);
         QString error;
         if (!KEncoderNotify::load(&config_, &error))
-            setFeedback(QStringLiteral("Konfigurace je neplatná: %1").arg(error));
+            setFeedback(QCoreApplication::translate("KEncoderNotifyKcm", "Konfigurace je neplatná: %1").arg(error));
         else
-            setFeedback(QStringLiteral("Sekvence se spouštějí pouze příkazem Přehrát nebo povoleným listenerem. ") +
-                        QStringLiteral("Po provedení se neověřuje readback."));
+            setFeedback(QCoreApplication::translate("KEncoderNotifyKcm", "Sekvence se spouštějí pouze příkazem Přehrát nebo povoleným listenerem. ") +
+                        QCoreApplication::translate("KEncoderNotifyKcm", "Po provedení se neověřuje readback."));
 
         connect(&playback_, &QProcess::errorOccurred, this,
                 [this](QProcess::ProcessError error) {
             if (error == QProcess::FailedToStart) {
-                setFeedback(QStringLiteral("Nelze spustit kencoder-notify."));
+                setFeedback(QCoreApplication::translate("KEncoderNotifyKcm", "Nelze spustit kencoder-notify."));
                 setBusy(false);
             }
         });
@@ -46,12 +49,12 @@ public:
                 this, [this](int code, QProcess::ExitStatus status) {
             setBusy(false);
             if (status == QProcess::NormalExit && code == 0) {
-                setFeedback(QStringLiteral("Sekvence dokončena nebo předána listeneru. Stav zařízení není ověřen readbackem."));
+                setFeedback(QCoreApplication::translate("KEncoderNotifyKcm", "Sekvence dokončena nebo předána listeneru. Stav zařízení není ověřen readbackem."));
             } else {
                 const QString details = QString::fromUtf8(playback_.readAllStandardError()).trimmed();
                 setFeedback(details.isEmpty()
-                    ? QStringLiteral("Přehrávání nebo návrat do Default selhal (kód %1).").arg(code)
-                    : QStringLiteral("Přehrávání nebo návrat do Default selhal: %1").arg(details.left(320)));
+                    ? QCoreApplication::translate("KEncoderNotifyKcm", "Přehrávání nebo návrat do Default selhal (kód %1).").arg(code)
+                    : QCoreApplication::translate("KEncoderNotifyKcm", "Přehrávání nebo návrat do Default selhal: %1").arg(details.left(320)));
             }
         });
     }
@@ -66,12 +69,12 @@ public:
     Q_INVOKABLE bool applyEssentials(bool enabled, const QString &backend)
     {
         if (enabled && backend != QLatin1String(KEncoderNotify::kWatcherBackend)) {
-            setFeedback(QStringLiteral("Listener KNotify scanner bude dostupný až ve fázi 2."));
+            setFeedback(QCoreApplication::translate("KEncoderNotifyKcm", "Listener KNotify scanner bude dostupný až ve fázi 2."));
             return false;
         }
         const QString exe = QStandardPaths::findExecutable(QStringLiteral("kencoder-notify"));
         if (enabled && exe.isEmpty()) {
-            setFeedback(QStringLiteral("Listener není dostupný v PATH. Nejdřív jej sestavte/nainstalujte."));
+            setFeedback(QCoreApplication::translate("KEncoderNotifyKcm", "Listener není dostupný v PATH. Nejdřív jej sestavte/nainstalujte."));
             return false;
         }
         Configuration updated = config_;
@@ -86,12 +89,12 @@ public:
         Q_EMIT essentialsChanged();
         if (enabled && !QProcess::startDetached(exe, {QStringLiteral("--daemon")})) {
             // Persisted state remains enabled; show failure explicitly.
-            setFeedback(QStringLiteral("Nastavení uloženo, ale listener se nepodařilo spustit."));
+            setFeedback(QCoreApplication::translate("KEncoderNotifyKcm", "Nastavení uloženo, ale listener se nepodařilo spustit."));
             return false;
         }
         setFeedback(enabled
-            ? QStringLiteral("Povoleno v konfiguraci. Spuštění procesu neprokazuje registraci v KDE D-Bus.")
-            : QStringLiteral("Naslouchání vypnuto. Běžící listener změnu konfigurace načte."));
+            ? QCoreApplication::translate("KEncoderNotifyKcm", "Povoleno v konfiguraci. Spuštění procesu neprokazuje registraci v KDE D-Bus.")
+            : QCoreApplication::translate("KEncoderNotifyKcm", "Naslouchání vypnuto. Běžící listener změnu konfigurace načte."));
         return true;
     }
 
@@ -124,19 +127,19 @@ public:
         }
         config_ = updated;
         Q_EMIT presetsChanged();
-        setFeedback(QStringLiteral("Preset uložen."));
+        setFeedback(QCoreApplication::translate("KEncoderNotifyKcm", "Preset uložen."));
         return true;
     }
 
     Q_INVOKABLE bool deletePreset(const QString &id)
     {
         if (id == QLatin1String(KEncoderNotify::kDefaultPresetId)) {
-            setFeedback(QStringLiteral("Preset Default nelze odstranit."));
+            setFeedback(QCoreApplication::translate("KEncoderNotifyKcm", "Preset Default nelze odstranit."));
             return false;
         }
         for (const auto &entry : config_.rules) {
             if (entry.toObject().value(QStringLiteral("preset_id")).toString() == id) {
-                setFeedback(QStringLiteral("Preset používá pravidlo. Nejdříve upravte nebo odstraňte pravidlo."));
+                setFeedback(QCoreApplication::translate("KEncoderNotifyKcm", "Preset používá pravidlo. Nejdříve upravte nebo odstraňte pravidlo."));
                 return false;
             }
         }
@@ -151,7 +154,7 @@ public:
                 }
                 config_ = updated;
                 Q_EMIT presetsChanged();
-                setFeedback(QStringLiteral("Preset odstraněn."));
+                setFeedback(QCoreApplication::translate("KEncoderNotifyKcm", "Preset odstraněn."));
                 return true;
             }
         }
@@ -190,7 +193,7 @@ public:
         }
         config_ = updated;
         Q_EMIT rulesChanged();
-        setFeedback(QStringLiteral("Pravidlo uloženo."));
+        setFeedback(QCoreApplication::translate("KEncoderNotifyKcm", "Pravidlo uloženo."));
         return true;
     }
 
@@ -213,17 +216,17 @@ public:
             }
             config_ = updated;
             Q_EMIT rulesChanged();
-            setFeedback(QStringLiteral("Pravidlo přesunuto na pozici %1.").arg(targetIndex + 1));
+            setFeedback(QCoreApplication::translate("KEncoderNotifyKcm", "Pravidlo přesunuto na pozici %1.").arg(targetIndex + 1));
             return true;
         }
-        setFeedback(QStringLiteral("Pravidlo neexistuje."));
+        setFeedback(QCoreApplication::translate("KEncoderNotifyKcm", "Pravidlo neexistuje."));
         return false;
     }
 
     Q_INVOKABLE bool moveRule(const QString &id, int offset)
     {
         if (offset != -1 && offset != 1) {
-            setFeedback(QStringLiteral("Pravidlo lze přesunout jen o jednu pozici."));
+            setFeedback(QCoreApplication::translate("KEncoderNotifyKcm", "Pravidlo lze přesunout jen o jednu pozici."));
             return false;
         }
         Configuration updated = config_;
@@ -243,11 +246,11 @@ public:
             }
             config_ = updated;
             Q_EMIT rulesChanged();
-            setFeedback(offset < 0 ? QStringLiteral("Pravidlo posunuto nahoru.")
-                                   : QStringLiteral("Pravidlo posunuto dolů."));
+            setFeedback(offset < 0 ? QCoreApplication::translate("KEncoderNotifyKcm", "Pravidlo posunuto nahoru.")
+                                   : QCoreApplication::translate("KEncoderNotifyKcm", "Pravidlo posunuto dolů."));
             return true;
         }
-        setFeedback(QStringLiteral("Pravidlo neexistuje."));
+        setFeedback(QCoreApplication::translate("KEncoderNotifyKcm", "Pravidlo neexistuje."));
         return false;
     }
 
@@ -269,11 +272,11 @@ public:
             }
             config_ = updated;
             Q_EMIT rulesChanged();
-            setFeedback(enabled ? QStringLiteral("Pravidlo zapnuto.")
-                                : QStringLiteral("Pravidlo vypnuto."));
+            setFeedback(enabled ? QCoreApplication::translate("KEncoderNotifyKcm", "Pravidlo zapnuto.")
+                                : QCoreApplication::translate("KEncoderNotifyKcm", "Pravidlo vypnuto."));
             return true;
         }
-        setFeedback(QStringLiteral("Pravidlo neexistuje."));
+        setFeedback(QCoreApplication::translate("KEncoderNotifyKcm", "Pravidlo neexistuje."));
         return false;
     }
 
@@ -290,7 +293,7 @@ public:
                 }
                 config_ = updated;
                 Q_EMIT rulesChanged();
-                setFeedback(QStringLiteral("Pravidlo odstraněno."));
+                setFeedback(QCoreApplication::translate("KEncoderNotifyKcm", "Pravidlo odstraněno."));
                 return true;
             }
         }
@@ -302,11 +305,11 @@ public:
         if (busy_ || KEncoderNotify::presetById(config_, id).isEmpty()) return;
         const QString exe = QStandardPaths::findExecutable(QStringLiteral("kencoder-notify"));
         if (exe.isEmpty()) {
-            setFeedback(QStringLiteral("Není dostupný kencoder-notify v PATH."));
+            setFeedback(QCoreApplication::translate("KEncoderNotifyKcm", "Není dostupný kencoder-notify v PATH."));
             return;
         }
         setBusy(true);
-        setFeedback(QStringLiteral("Spouštím sekvenci, bez hardwarového readbacku…"));
+        setFeedback(QCoreApplication::translate("KEncoderNotifyKcm", "Spouštím sekvenci, bez hardwarového readbacku…"));
         playback_.start(exe, {QStringLiteral("--play"), id});
     }
 

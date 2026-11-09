@@ -40,6 +40,10 @@ if [[ "$component" == encoder ]]; then
   cp "$root/packaging/udev/70-encoder-uaccess.rules" \
      "$root/packaging/udev/99-encoder.rules" "$stage/packaging/udev/"
   cp "$root/docs/man/man1/encoder.1" "$stage/docs/man/man1/"
+  for lang in en sk uk de ru pl; do
+    install -Dm644 "$root/docs/man/$lang/man1/encoder.1" \
+      "$stage/docs/man/$lang/man1/encoder.1"
+  done
   cp -a "$root/debian/encoder.udev" "$stage/debian/"
   cp "$root/debian/encoder.install" "$root/debian/encoder.manpages" "$stage/debian/"
   cp "$root/debian/encoder.postinst" "$root/debian/encoder.postrm" "$stage/debian/"
@@ -48,6 +52,7 @@ if [[ "$component" == encoder ]]; then
 else
   cp -a "$root/gui" "$stage/gui"
   cp -a "$root/notify" "$stage/notify"
+  cp -a "$root/translations" "$stage/translations"
   mkdir -p "$stage/packaging"
   cp "$root/packaging/kencoder.desktop" "$root/packaging/kencoder.png" \
      "$root/packaging/kencoder-notify-autostart.desktop" "$stage/packaging/"
@@ -94,6 +99,20 @@ file="$work/$package"
 [[ $(dpkg-deb -f "$file" Version) == "$deb_version" ]]
 [[ $(dpkg-deb -f "$file" Architecture) == "$arch" ]]
 
+if [[ "$component" == encoder ]]; then
+  # The CLI package must include the Czech source manual and all six translations.
+  contents=$(dpkg-deb --contents "$file")
+  [[ "$contents" == *"/usr/share/man/man1/encoder.1.gz"* ]] || {
+    echo 'Incomplete encoder package: missing Czech default manual' >&2; exit 1;
+  }
+  for lang in en sk uk de ru pl; do
+    [[ "$contents" == *"/usr/share/man/$lang/man1/encoder.1.gz"* ]] || {
+      echo "Incomplete encoder package: missing manpage language $lang" >&2; exit 1;
+    }
+  done
+  echo 'Encoder manual pages (cs + en/sk/uk/de/ru/pl): PASS'
+fi
+
 if [[ "$component" == kencoder ]]; then
   # Ensure the archive contains all parts, rather than merely building the GUI.
   contents=$(dpkg-deb --contents "$file")
@@ -115,6 +134,11 @@ if [[ "$component" == kencoder ]]; then
     'qml6-module-org-kde-kirigami'; do
     [[ "$deps" == *"$required"* ]] || {
       echo "Incomplete kencoder package: missing dependency $required" >&2; exit 1;
+    }
+  done
+  for lang in en sk uk de ru pl; do
+    [[ "$contents" == *"share/kencoder/translations/kencoder_${lang}.qm"* ]] || {
+      echo "Incomplete kencoder package: missing language $lang" >&2; exit 1;
     }
   done
   echo 'KEncoder package contents and runtime dependencies: PASS'

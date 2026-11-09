@@ -8,10 +8,15 @@ include /usr/share/dpkg/buildflags.mk
 
 override_dh_auto_build:
 	$(MAKE) CC="$(CC)" CFLAGS="$(CFLAGS) $(CPPFLAGS)" LDFLAGS="$(LDFLAGS)"
-	cmake -S gui -B build/gui -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo -DKENCODER_REQUIRE_KCM=ON
+	cmake -S gui -B build/gui -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo -DKENCODER_REQUIRE_KCM=ON -DKENCODER_REQUIRE_TRANSLATIONS=ON
 	cmake --build build/gui --parallel
 	cmake -S notify -B build/notify -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo
 	cmake --build build/notify --parallel
+	# dh_installman detects the language from encoder.<lang>.1 filenames.
+	mkdir -p build/manpages
+	for lang in en sk uk de ru pl; do \
+		cp "docs/man/$$lang/man1/encoder.1" "build/manpages/encoder.$$lang.1"; \
+	done
 
 override_dh_auto_install:
 	install -Dm755 build/cli/encoder debian/encoder/usr/bin/encoder
@@ -30,4 +35,4 @@ override_dh_shlibdeps:
 
 override_dh_auto_clean:
 	$(MAKE) clean
-	rm -rf build/gui build/notify
+	rm -rf build/gui build/notify build/manpages

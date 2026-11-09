@@ -21,7 +21,7 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y --no-install-recommends build-essential debhelper fakeroot dpkg-dev file
 if [[ "$CI_COMPONENT" == kencoder ]]; then
-  apt-get install -y --no-install-recommends cmake qt6-base-dev qt6-qpa-plugins qt6-declarative-dev extra-cmake-modules libkf6kcmutils-dev
+  apt-get install -y --no-install-recommends cmake qt6-base-dev qt6-qpa-plugins qt6-declarative-dev extra-cmake-modules libkf6kcmutils-dev qt6-l10n-tools
 fi
 [[ $(dpkg --print-architecture) == "$CI_ARCH" ]] || { echo 'Wrong native architecture' >&2; exit 2; }
 

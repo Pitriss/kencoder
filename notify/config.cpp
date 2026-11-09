@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright 2026 Pitriss
+#include <QCoreApplication>
 #include "config.h"
 
 #include <QDir>
@@ -29,15 +30,15 @@ bool parseFile(const QString &path, const char *listKey, QJsonObject *root, QStr
         return true;
     }
     if (!file.open(QIODevice::ReadOnly))
-        return fail(error, QStringLiteral("Nelze otevřít %1").arg(path));
+        return fail(error, QCoreApplication::translate("KEncoderErrors", "Nelze otevřít %1").arg(path));
     QJsonParseError parseError;
     const auto document = QJsonDocument::fromJson(file.readAll(), &parseError);
     if (parseError.error != QJsonParseError::NoError || !document.isObject())
-        return fail(error, QStringLiteral("Neplatný JSON: %1").arg(path));
+        return fail(error, QCoreApplication::translate("KEncoderErrors", "Neplatný JSON: %1").arg(path));
     *root = document.object();
     if (root->value(QStringLiteral("version")).toInt(-1) != 1 ||
         !root->value(QLatin1String(listKey)).isArray())
-        return fail(error, QStringLiteral("Nepodporovaný formát konfigurace: %1").arg(path));
+        return fail(error, QCoreApplication::translate("KEncoderErrors", "Nepodporovaný formát konfigurace: %1").arg(path));
     return true;
 }
 
@@ -45,13 +46,13 @@ bool saveFile(const QString &path, const QJsonObject &root, QString *error)
 {
     const QFileInfo info(path);
     if (!QDir().mkpath(info.absolutePath()))
-        return fail(error, QStringLiteral("Nelze vytvořit adresář konfigurace."));
+        return fail(error, QCoreApplication::translate("KEncoderErrors", "Nelze vytvořit adresář konfigurace."));
     QSaveFile file(path);
     if (!file.open(QIODevice::WriteOnly))
-        return fail(error, QStringLiteral("Nelze uložit konfiguraci: %1").arg(path));
+        return fail(error, QCoreApplication::translate("KEncoderErrors", "Nelze uložit konfiguraci: %1").arg(path));
     const QByteArray json = QJsonDocument(root).toJson(QJsonDocument::Indented);
     if (file.write(json) != json.size() || !file.commit())
-        return fail(error, QStringLiteral("Nelze dokončit zápis: %1").arg(path));
+        return fail(error, QCoreApplication::translate("KEncoderErrors", "Nelze dokončit zápis: %1").arg(path));
     return true;
 }
 
@@ -125,19 +126,19 @@ QString muteFile() { return configDirectory() + QStringLiteral("/notify-muted.js
 bool loadMute(bool *muted, QString *error)
 {
     if (!muted)
-        return fail(error, QStringLiteral("Chybí cíl pro stav ztlumení."));
+        return fail(error, QCoreApplication::translate("KEncoderErrors", "Chybí cíl pro stav ztlumení."));
     QFile file(muteFile());
     if (!file.exists()) {
         *muted = false;
         return true;
     }
     if (!file.open(QIODevice::ReadOnly))
-        return fail(error, QStringLiteral("Nelze načíst stav ztlumení notifikací."));
+        return fail(error, QCoreApplication::translate("KEncoderErrors", "Nelze načíst stav ztlumení notifikací."));
     const QJsonDocument document = QJsonDocument::fromJson(file.readAll());
     if (!document.isObject() ||
         document.object().value(QStringLiteral("version")).toInt(-1) != 1 ||
         !document.object().value(QStringLiteral("muted")).isBool())
-        return fail(error, QStringLiteral("Neplatný formát notify-muted.json."));
+        return fail(error, QCoreApplication::translate("KEncoderErrors", "Neplatný formát notify-muted.json."));
     *muted = document.object().value(QStringLiteral("muted")).toBool();
     return true;
 }
@@ -151,7 +152,7 @@ bool saveMute(bool muted, QString *error)
 bool load(Configuration *out, QString *error)
 {
     if (!out)
-        return fail(error, QStringLiteral("Chybí cílová konfigurace."));
+        return fail(error, QCoreApplication::translate("KEncoderErrors", "Chybí cílová konfigurace."));
     Configuration result;
     QJsonObject presets;
     QJsonObject rules;
@@ -164,7 +165,7 @@ bool load(Configuration *out, QString *error)
     if (!rules.isEmpty()) {
         if (!rules.value(QStringLiteral("enabled")).isBool() ||
             !rules.value(QStringLiteral("backend")).isString())
-            return fail(error, QStringLiteral("Chybí enabled/backend v notify-rules.json."));
+            return fail(error, QCoreApplication::translate("KEncoderErrors", "Chybí enabled/backend v notify-rules.json."));
         result.enabled = rules.value(QStringLiteral("enabled")).toBool();
         result.backend = rules.value(QStringLiteral("backend")).toString();
     }
@@ -178,56 +179,56 @@ bool validate(const Configuration &config, QString *error)
 {
     if (config.backend != QLatin1String(kWatcherBackend) &&
         config.backend != QLatin1String(kFutureBackend))
-        return fail(error, QStringLiteral("Neznámý backend notifikací."));
+        return fail(error, QCoreApplication::translate("KEncoderErrors", "Neznámý backend notifikací."));
     // Future backend can be selected in a file but must never activate silently.
     if (config.enabled && config.backend != QLatin1String(kWatcherBackend))
-        return fail(error, QStringLiteral("Backend KNotify scanner zatím není implementován."));
+        return fail(error, QCoreApplication::translate("KEncoderErrors", "Backend KNotify scanner zatím není implementován."));
 
     QSet<QString> ids;
     for (const auto &entry : config.presets) {
         if (!entry.isObject() || !validIdentifier(entry.toObject()))
-            return fail(error, QStringLiteral("Neplatná položka presetu."));
+            return fail(error, QCoreApplication::translate("KEncoderErrors", "Neplatná položka presetu."));
         const QJsonObject preset = entry.toObject();
         const QString id = preset.value(QStringLiteral("id")).toString();
         if (ids.contains(id) || !preset.value(QStringLiteral("steps")).isArray())
-            return fail(error, QStringLiteral("Duplicitní ID nebo chybějící kroky presetu: %1").arg(id));
+            return fail(error, QCoreApplication::translate("KEncoderErrors", "Duplicitní ID nebo chybějící kroky presetu: %1").arg(id));
         ids.insert(id);
         const QJsonArray steps = preset.value(QStringLiteral("steps")).toArray();
         if (steps.isEmpty())
-            return fail(error, QStringLiteral("Preset musí obsahovat alespoň jeden krok: %1").arg(id));
+            return fail(error, QCoreApplication::translate("KEncoderErrors", "Preset musí obsahovat alespoň jeden krok: %1").arg(id));
         // The Default preset describes a lighting state, never a timed wait.
         if (id == QLatin1String(kDefaultPresetId) &&
             steps.first().toObject().value(QStringLiteral("type")).toString() == QLatin1String("wait"))
-            return fail(error, QStringLiteral("Default nesmí začínat krokem Čekat."));
+            return fail(error, QCoreApplication::translate("KEncoderErrors", "Default nesmí začínat krokem Čekat."));
         for (const auto &step : steps) {
             if (!step.isObject() || !validStep(step.toObject()))
-                return fail(error, QStringLiteral("Neplatný krok v presetu: %1").arg(id));
+                return fail(error, QCoreApplication::translate("KEncoderErrors", "Neplatný krok v presetu: %1").arg(id));
         }
     }
 
     QSet<QString> ruleIds;
     for (const auto &entry : config.rules) {
         if (!entry.isObject() || !validIdentifier(entry.toObject()))
-            return fail(error, QStringLiteral("Neplatné pravidlo."));
+            return fail(error, QCoreApplication::translate("KEncoderErrors", "Neplatné pravidlo."));
         const QJsonObject rule = entry.toObject();
         const QString id = rule.value(QStringLiteral("id")).toString();
         if (ruleIds.contains(id) || !rule.value(QStringLiteral("enabled")).isBool() ||
             !rule.value(QStringLiteral("match")).isObject() ||
             !rule.value(QStringLiteral("preset_id")).isString())
-            return fail(error, QStringLiteral("Neplatná struktura pravidla: %1").arg(id));
+            return fail(error, QCoreApplication::translate("KEncoderErrors", "Neplatná struktura pravidla: %1").arg(id));
         ruleIds.insert(id);
         if (!ids.contains(rule.value(QStringLiteral("preset_id")).toString()))
-            return fail(error, QStringLiteral("Pravidlo odkazuje na neexistující preset: %1").arg(id));
+            return fail(error, QCoreApplication::translate("KEncoderErrors", "Pravidlo odkazuje na neexistující preset: %1").arg(id));
         const QJsonObject match = rule.value(QStringLiteral("match")).toObject();
         const auto app = match.value(QStringLiteral("app_contains"));
         const auto title = match.value(QStringLiteral("title_contains"));
         const auto body = match.value(QStringLiteral("text_contains"));
         if (!app.isString() || !title.isString() || !body.isString() ||
             (app.toString().isEmpty() && title.toString().isEmpty() && body.toString().isEmpty()))
-            return fail(error, QStringLiteral("Pravidlo vyžaduje alespoň jednu podmínku: %1").arg(id));
+            return fail(error, QCoreApplication::translate("KEncoderErrors", "Pravidlo vyžaduje alespoň jednu podmínku: %1").arg(id));
         const int cooldown = rule.value(QStringLiteral("cooldown_ms")).toInt(-1);
         if (cooldown < 0 || cooldown > 3600000)
-            return fail(error, QStringLiteral("Neplatný cooldown pravidla: %1").arg(id));
+            return fail(error, QCoreApplication::translate("KEncoderErrors", "Neplatný cooldown pravidla: %1").arg(id));
     }
     return true;
 }

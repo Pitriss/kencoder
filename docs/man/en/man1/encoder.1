@@ -1,0 +1,168 @@
+.TH ENCODER 1 "2026-11-06" "KEncoder" "User Commands"
+.SH NAME
+encoder \- control HP OMEN Encoder keyboard backlighting from the command line
+.SH SYNOPSIS
+.B encoder
+.RB [ \-b " " 0|1|2|3 ]
+.RB [ \-s | \-o | \-a " " MODE ]
+.RB [ \-v " " SPEED ]
+.br
+.B encoder --status [--json]
+.br
+.B encoder -h
+.SH DESCRIPTION
+.B encoder
+sets the brightness and backlighting mode of the HP OMEN Encoder
+keyboard (USB VID:PID 03f0:3341) using the Linux HID raw interface.
+It provides static backlighting, lighting off, and several animation
+effects.
+.PP
+The program locates the matching device
+.I /dev/hidrawX
+using its USB identifiers and the HID report descriptor size.
+The interface must be accessible for both reading and writing.
+Ordinary commands change the device settings. The
+.B --status
+option instead reads the currently reported brightness and effect
+family without changing the backlighting.
+Wave direction and animation speed cannot currently be read back.
+.SH OPTIONS
+.TP
+.B --status
+Performs a read-only GetDeviceInfo (80 01) query without sending any
+brightness or effect-setting commands.
+Reports whether lighting is on or off, brightness from 0 to 3, and
+the effect family. Wave direction and animation speed remain
+unknown.
+Cannot be combined with options that write device settings.
+.TP
+.B --json
+When used with --status, prints machine-readable JSON.
+The direction and speed fields are always null; the source field is
+hardware.
+.TP
+.B \-h
+Prints brief help and exits. A connected keyboard is not required.
+.TP
+.B \-s
+Turns on static key backlighting.
+.TP
+.B \-o
+Turns off the backlighting.
+.TP
+.BI \-b " LEVEL"
+Sets brightness to 0, 1, 2, or 3; higher values produce brighter
+light.
+When omitted, the current implementation uses level 3.
+Brightness may also be set alone without changing the current
+lighting mode.
+.TP
+.BI \-a " MODE"
+Selects an animation. Supported values are:
+.RS
+.TP
+.B ripple
+Ripple effect.
+.TP
+.B left_wave
+Wave from the left.
+.TP
+.B right_wave
+Wave from the right.
+.TP
+.B breathe
+Pulsing or breathing effect.
+.RE
+.TP
+.BI \-v " SPEED"
+Animation speed: slow, medium, or fast.
+The default is slow.
+Only takes effect with -a; setting speed without an animation has no
+visible effect.
+.SH EXAMPLES
+.TP
+.B encoder -b 1 -s
+Set brightness to 1 and turn on static lighting.
+.TP
+.B encoder -b 3 -a ripple -v fast
+Set brightness to 3 and enable fast ripples.
+.TP
+.B encoder -a left_wave -v medium
+Start a medium-speed wave from the left; brightness defaults to 3
+without -b.
+.TP
+.B encoder -b 2
+Set only brightness to 2, without changing the lighting mode.
+.TP
+.B encoder -o
+Turn off backlighting.
+.TP
+.B encoder -h
+Print the help message.
+.SH OPTION ORDER AND COMBINATIONS
+The program sends the brightness setting first, followed by the
+command to turn lighting off, select static lighting, or start an
+animation.
+This also applies when -o is used or when the program is invoked
+without options.
+If multiple mode options are given, -o takes precedence, followed by
+-s and then -a. Specify only one mode option for predictable
+behavior.
+.PP
+The current implementation does not always report unknown arguments
+or unsupported values as errors.
+The --status option uses a separate read-only path and never sends a
+lighting-setting command.
+.SH PERMISSIONS AND DEVICE
+.B encoder
+opens the corresponding
+.I /dev/hidrawX
+interface for reading and writing.
+Access can be granted by the udev rule shipped with the encoder
+package or by administrator permissions.
+If the keyboard is disconnected, the interface is not found, or
+access is denied, the program prints:
+.PP
+.nf
+OMEN Encoder keyboard not found or access denied
+.fi
+.PP
+If this happens, check that the keyboard is connected and that the
+HID raw device permissions allow access. The path
+.I /dev/hidrawX
+may change after reconnecting the keyboard.
+.SH EXIT STATUS
+.TP
+.B 0
+Help was displayed, or the request was processed without an error
+opening the device.
+In the current implementation, exit status 0 does not necessarily
+mean the device confirmed every HID command.
+.TP
+.B 1
+The matching keyboard could not be opened (not found or permission
+denied). For read-only status mode, it also indicates a
+communication error or an unsupported response format.
+.TP
+.B 2
+An invalid combination of options involving --status or --json.
+.PP
+Communication failures for older write commands may be displayed as
+.B Command failed
+without an accompanying nonzero exit status. Read-only status mode
+writes error messages to standard error.
+.SH FILES
+.TP
+.I /dev/hidrawX
+HID raw interface of the compatible keyboard.
+.TP
+.I /usr/lib/udev/rules.d/
+Device access rules installed by the package.
+.SH AUTHORS AND LICENSE
+The original utility was created by Taras Zakharchenko (2020).
+KEncoder is based on the upstream project
+.I player999/encoder_keyboard
+and is licensed under BSD-3-Clause.
+.SH SEE ALSO
+.BR udev (7),
+.BR udevadm (8)

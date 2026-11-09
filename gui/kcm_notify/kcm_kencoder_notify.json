@@ -4,6 +4,12 @@
         "Name[cs]": "KEncoder Notify",
         "Description": "Notification-triggered HP OMEN Encoder lighting sequences",
         "Description[cs]": "Světelné sekvence vyvolávané oznámeními",
+        "Description[en]": "Notification-triggered HP OMEN Encoder lighting sequences",
+        "Description[sk]": "Svetelné sekvencie spúšťané oznámeniami",
+        "Description[uk]": "Світлові ефекти клавіатури, що запускаються сповіщеннями",
+        "Description[de]": "Durch Benachrichtigungen ausgelöste Tastatureffekte",
+        "Description[ru]": "Световые эффекты клавиатуры по уведомлениям",
+        "Description[pl]": "Sekwencje podświetlenia wyzwalane powiadomieniami",
         "Icon": "preferences-desktop-notification",
         "FormFactors": ["desktop"]
     },

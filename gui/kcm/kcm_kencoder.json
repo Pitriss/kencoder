@@ -4,6 +4,12 @@
         "Name[cs]": "HP OMEN Encoder",
         "Description": "Configure HP OMEN Encoder keyboard lighting",
         "Description[cs]": "Nastavení podsvícení klávesnice HP OMEN Encoder",
+        "Description[en]": "Configure HP OMEN Encoder keyboard lighting",
+        "Description[sk]": "Nastavenie podsvietenia klávesnice HP OMEN Encoder",
+        "Description[uk]": "Налаштування підсвічування клавіатури HP OMEN Encoder",
+        "Description[de]": "Tastaturbeleuchtung des HP OMEN Encoder konfigurieren",
+        "Description[ru]": "Настройка подсветки клавиатуры HP OMEN Encoder",
+        "Description[pl]": "Konfiguracja podświetlenia klawiatury HP OMEN Encoder",
         "Icon": "preferences-desktop-keyboard",
         "FormFactors": ["desktop"]
     },

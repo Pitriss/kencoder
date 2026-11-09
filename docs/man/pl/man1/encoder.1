@@ -1,0 +1,167 @@
+.TH ENCODER 1 "2026-11-06" "KEncoder" "Polecenia użytkownika"
+.SH NAZWA
+encoder \- sterowanie podświetleniem klawiatury HP OMEN Encoder z wiersza
+poleceń
+.SH SKŁADNIA
+.B encoder
+.RB [ \-b " " 0|1|2|3 ]
+.RB [ \-s | \-o | \-a " " TRYB ]
+.RB [ \-v " " PRĘDKOŚĆ ]
+.br
+.B encoder --status [--json]
+.br
+.B encoder -h
+.SH OPIS
+.B encoder
+ustawia jasność i tryb podświetlenia klawiatury HP OMEN Encoder (USB
+VID:PID 03f0:3341) przez interfejs Linux HID raw.
+Umożliwia stałe podświetlenie, wyłączenie światła i kilka animacji.
+.PP
+Program odnajduje właściwe urządzenie
+.I /dev/hidrawX
+na podstawie identyfikatorów USB i rozmiaru deskryptora raportu HID.
+Do komunikacji wymagane są uprawnienia odczytu i zapisu.
+Zwykłe polecenia zmieniają ustawienia urządzenia. Opcja
+.B --status
+zamiast tego odczytuje zgłaszaną jasność i grupę efektów bez zmiany
+podświetlenia.
+Kierunku fali ani prędkości animacji nie można obecnie odczytać.
+.SH OPCJE
+.TP
+.B --status
+Wykonuje wyłącznie zapytanie odczytowe GetDeviceInfo (80 01), bez
+wysyłania poleceń ustawiania jasności lub efektów.
+Zwraca stan włączone/wyłączone, jasność od 0 do 3 oraz grupę
+efektów. Kierunek fali i prędkość animacji pozostają nieznane.
+Nie można łączyć z opcjami zapisującymi ustawienia.
+.TP
+.B --json
+Wraz z --status wypisuje dane JSON do odczytu maszynowego.
+Pola direction i speed zawsze mają wartość null, a pole source ma
+wartość hardware.
+.TP
+.B \-h
+Wyświetla krótką pomoc i kończy działanie. Podłączona klawiatura nie
+jest wymagana.
+.TP
+.B \-s
+Włącza stałe podświetlenie klawiszy.
+.TP
+.B \-o
+Wyłącza podświetlenie.
+.TP
+.BI \-b " POZIOM"
+Ustawia jasność na 0, 1, 2 lub 3. Wyższa wartość oznacza jaśniejsze
+światło.
+Jeśli nie podano tej opcji, obecna implementacja używa poziomu 3.
+Jasność można ustawić także samodzielnie, bez zmiany trybu
+podświetlenia.
+.TP
+.BI \-a " TRYB"
+Wybiera animację. Obsługiwane wartości:
+.RS
+.TP
+.B ripple
+Efekt rozchodzących się fal (ripple).
+.TP
+.B left_wave
+Fala od lewej strony.
+.TP
+.B right_wave
+Fala od prawej strony.
+.TP
+.B breathe
+Pulsowanie (oddychanie).
+.RE
+.TP
+.BI \-v " PRĘDKOŚĆ"
+Prędkość animacji: slow, medium lub fast.
+Wartość domyślna to slow.
+Działa tylko z opcją -a; sama zmiana prędkości bez animacji nie daje
+widocznego efektu.
+.SH PRZYKŁADY
+.TP
+.B encoder -b 1 -s
+Ustawia jasność 1 i włącza stałe podświetlenie.
+.TP
+.B encoder -b 3 -a ripple -v fast
+Ustawia jasność 3 i szybki efekt fal.
+.TP
+.B encoder -a left_wave -v medium
+Uruchamia falę od lewej ze średnią prędkością; bez -b używana jest
+jasność 3.
+.TP
+.B encoder -b 2
+Ustawia tylko jasność 2, bez zmiany trybu podświetlenia.
+.TP
+.B encoder -o
+Wyłącza podświetlenie.
+.TP
+.B encoder -h
+Wyświetla pomoc.
+.SH KOLEJNOŚĆ I ŁĄCZENIE OPCJI
+Program najpierw wysyła ustawienie jasności, a dopiero potem
+polecenie wyłączenia, stałego podświetlenia lub animacji.
+Dotyczy to również opcji -o oraz uruchomienia bez opcji.
+Gdy podano kilka opcji trybu, pierwszeństwo ma -o, następnie -s i na
+końcu -a. Dla przewidywalnego działania należy wybrać tylko jeden
+tryb.
+.PP
+Obecna implementacja nie zawsze zgłasza nieznane argumenty lub
+nieobsługiwane wartości jako błąd.
+Opcja --status korzysta z osobnej ścieżki tylko do odczytu i nie
+wysyła poleceń zmiany podświetlenia.
+.SH UPRAWNIENIA I URZĄDZENIE
+.B encoder
+otwiera odpowiedni interfejs
+.I /dev/hidrawX
+do odczytu i zapisu.
+Dostęp może zapewnić reguła udev dostarczona z pakietem encoder lub
+uprawnienia administratora systemu.
+Jeśli klawiatura jest odłączona, nie znaleziono interfejsu lub
+odmówiono dostępu, program wyświetla:
+.PP
+.nf
+OMEN Encoder keyboard not found or access denied
+.fi
+.PP
+W razie problemów sprawdź podłączenie klawiatury i uprawnienia
+odpowiedniego urządzenia HID raw. Ścieżka
+.I /dev/hidrawX
+może się zmienić po ponownym podłączeniu.
+.SH KODY ZAKOŃCZENIA
+.TP
+.B 0
+Wyświetlono pomoc lub obsłużono żądanie bez błędu otwarcia
+urządzenia.
+W obecnej implementacji kod 0 nie musi oznaczać, że urządzenie
+potwierdziło wszystkie polecenia HID.
+.TP
+.B 1
+Nie udało się otworzyć właściwej klawiatury (nie znaleziono jej lub
+odmówiono dostępu). W trybie odczytu także błąd komunikacji albo
+nieobsługiwany format odpowiedzi.
+.TP
+.B 2
+Niedozwolone połączenie opcji z --status lub --json.
+.PP
+Błędy komunikacji w starszych poleceniach zapisu mogą być
+wyświetlane jako
+.B Command failed
+bez odpowiadającego niezerowego kodu zakończenia. Tryb odczytu
+wypisuje błędy na standardowe wyjście błędów.
+.SH PLIKI
+.TP
+.I /dev/hidrawX
+Interfejs HID raw zgodnej klawiatury.
+.TP
+.I /usr/lib/udev/rules.d/
+Reguły dostępu do urządzenia instalowane przez pakiet.
+.SH AUTORZY I LICENCJA
+Pierwotne narzędzie stworzył Taras Zakharchenko (2020).
+Projekt KEncoder rozwija projekt źródłowy
+.I player999/encoder_keyboard
+na licencji BSD-3-Clause.
+.SH ZOBACZ TAKŻE
+.BR udev (7),
+.BR udevadm (8)

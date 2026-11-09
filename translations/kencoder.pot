@@ -1,0 +1,1364 @@
+# KEncoder GUI translation: None
+# Generated from one shared translations/kencoder.pot
+msgid ""
+msgstr ""
+"Project-Id-Version: KEncoder 0.2.1\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Animace nastavena"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Animace:"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Běží starý kencoder-notify. Nejdřív jej restartujte."
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Chyba programu encoder: %1"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Chybí CLI encoder. Nainstalujte balíček encoder."
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Chybí udev pravidlo 70-encoder-uaccess.rules nebo 99-encoder.rules."
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Diagnostika vynechána při self-testu."
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Dýchání"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "HP OMEN Encoder (03f0:3341) | nepřipojeno"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Jas (0 až 3):"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Klávesnice HP OMEN Encoder není připojena."
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Klávesnice neodpověděla do 8 sekund. Proces byl ukončen."
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Nastavit"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Nelze načíst ztlumení: %1"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Nelze otevřít %1 pro čtení a zápis. Zkontrolujte oprávnění."
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Nelze ověřit stav udev. Zkontrolujte udevadm."
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Nelze spustit encoder. Zkontrolujte instalaci."
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Odesláno: %1. Ověřuji stav…"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Odesílám nastavení do klávesnice…"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Otevírám Nastavení systému: KEncoder."
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Otevírám samostatné nastavení KEncoder."
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Otevřít ovládací panel"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Podsvícení vypnuto"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Podsvícení: příkaz encoder nelze spustit."
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Podsvícení: příkaz encoder není dostupný."
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Podsvícení: stav nelze načíst (encoder --status --json)."
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Podsvícení: stav neznámý."
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Podsvícení: čtení překročilo časový limit."
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Pomalá"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Problém"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Před nastavením vlny zvolte její směr."
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Připraveno: CLI, udev a přístup ke klávesnici jsou funkční."
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Příkaz selhal (kód %1). %2"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Reakce na stisk"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Rychlost:"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Rychlá"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Skrýt"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Služba nepotvrdila ztlumení; změna byla vrácena."
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Statické"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Statické podsvícení nastaveno"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Stav"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Stav zařízení a zprávy"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Střední"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Světelné notifikace jsou ztlumené."
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "System Settings ani kcmshell6 nejsou dostupné."
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Systémový panel není dostupný; zavření okna aplikaci ukončí."
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Test zprávy"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Ukončit"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Upozornění"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "V pořádku"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Vlna (směr nezjištěn)"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Vlna zleva"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Vlna zprava"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Vypnout"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Vypnout světelné notifikace KEncoder Notify"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Z klávesnice: Statické, jas 1. Rychlost nezjištěna."
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Z klávesnice: Statické, jas 2. Rychlost nezjištěna."
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Zavřít do systémového panelu"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Zjišťuji skutečný stav klávesnice…"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Zobrazit"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Ztlumení nelze uložit: %1"
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Ztlumení zrušeno; platí nastavení listeneru."
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "Ztlumí světelné reakce KEncoder Notify. Nemění systémová oznámení Plasma ani pravidla."
+msgstr ""
+
+#: gui/main.cpp
+msgctxt "KEncoder"
+msgid "udev pravidlo není aplikováno. Znovu připojte klávesnici."
+msgstr ""
+
+#: notify/config.cpp
+msgctxt "KEncoderErrors"
+msgid "Backend KNotify scanner zatím není implementován."
+msgstr ""
+
+#: notify/config.cpp
+msgctxt "KEncoderErrors"
+msgid "Chybí cíl pro stav ztlumení."
+msgstr ""
+
+#: notify/config.cpp
+msgctxt "KEncoderErrors"
+msgid "Chybí cílová konfigurace."
+msgstr ""
+
+#: notify/config.cpp
+msgctxt "KEncoderErrors"
+msgid "Chybí enabled/backend v notify-rules.json."
+msgstr ""
+
+#: notify/config.cpp
+msgctxt "KEncoderErrors"
+msgid "Default nesmí začínat krokem Čekat."
+msgstr ""
+
+#: notify/config.cpp
+msgctxt "KEncoderErrors"
+msgid "Duplicitní ID nebo chybějící kroky presetu: %1"
+msgstr ""
+
+#: notify/config.cpp
+msgctxt "KEncoderErrors"
+msgid "Nelze dokončit zápis: %1"
+msgstr ""
+
+#: notify/config.cpp
+msgctxt "KEncoderErrors"
+msgid "Nelze načíst stav ztlumení notifikací."
+msgstr ""
+
+#: notify/config.cpp
+msgctxt "KEncoderErrors"
+msgid "Nelze otevřít %1"
+msgstr ""
+
+#: notify/config.cpp
+msgctxt "KEncoderErrors"
+msgid "Nelze uložit konfiguraci: %1"
+msgstr ""
+
+#: notify/config.cpp
+msgctxt "KEncoderErrors"
+msgid "Nelze vytvořit adresář konfigurace."
+msgstr ""
+
+#: notify/config.cpp
+msgctxt "KEncoderErrors"
+msgid "Neplatná položka presetu."
+msgstr ""
+
+#: notify/config.cpp
+msgctxt "KEncoderErrors"
+msgid "Neplatná struktura pravidla: %1"
+msgstr ""
+
+#: notify/config.cpp
+msgctxt "KEncoderErrors"
+msgid "Neplatné pravidlo."
+msgstr ""
+
+#: notify/config.cpp
+msgctxt "KEncoderErrors"
+msgid "Neplatný JSON: %1"
+msgstr ""
+
+#: notify/config.cpp
+msgctxt "KEncoderErrors"
+msgid "Neplatný cooldown pravidla: %1"
+msgstr ""
+
+#: notify/config.cpp
+msgctxt "KEncoderErrors"
+msgid "Neplatný formát notify-muted.json."
+msgstr ""
+
+#: notify/config.cpp
+msgctxt "KEncoderErrors"
+msgid "Neplatný krok v presetu: %1"
+msgstr ""
+
+#: notify/config.cpp
+msgctxt "KEncoderErrors"
+msgid "Nepodporovaný formát konfigurace: %1"
+msgstr ""
+
+#: notify/config.cpp
+msgctxt "KEncoderErrors"
+msgid "Neznámý backend notifikací."
+msgstr ""
+
+#: notify/config.cpp
+msgctxt "KEncoderErrors"
+msgid "Pravidlo odkazuje na neexistující preset: %1"
+msgstr ""
+
+#: notify/config.cpp
+msgctxt "KEncoderErrors"
+msgid "Pravidlo vyžaduje alespoň jednu podmínku: %1"
+msgstr ""
+
+#: notify/config.cpp
+msgctxt "KEncoderErrors"
+msgid "Preset musí obsahovat alespoň jeden krok: %1"
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Aplikace kencoder není dostupná v PATH."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Aplikaci KEncoder nelze spustit."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Běží nekompatibilní nebo neodpovídající služba."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Běží stará služba bez ztlumení. Restartujte ji."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Chyba programu encoder: %1"
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Chybná konfigurace KEncoder Notify: %1"
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Chybí program encoder v PATH."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Chybí spustitelný kencoder-notify v PATH."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Klávesnice neodpověděla do 8 sekund."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Listener aktivní; reakce ztlumené."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Listener je povolen, ale služba neběží."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Listener je vypnutý v nastavení KEncoder Notify."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Listener je vypnutý."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Listener povolen, ale registrace u Plasma selhala."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Listener zaregistrován u Plasma 6."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Nastavení relace uloženo a aktivováno."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Nastavení relace: %1"
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Nastavení uloženo, ale běžící služba jej nepřijala."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Nastavení uloženo, ale chybí kencoder-notify v PATH."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Nastavení uloženo, ale službu nelze spustit."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Nastavení uloženo, spouštím službu relace."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Nastavení uloženo. Běží starší kencoder-notify; restartujte službu relace."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Nelze načíst preset Default: %1"
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Neplatná rychlost animace."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Neplatná rychlost v presetu Default."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Neplatná úroveň jasu."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Neplatný jas v presetu Default."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Nepodporovaný krok v presetu Default."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Neznámá animace."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Odesílání příkazu…"
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Ovládání a čtení podsvícení dostupné."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Preset Default nemá žádný krok."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Program dostupný, služba aktuálně neběží."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Příkaz encoder nelze spustit."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Příkaz encoder není nainstalovaný nebo není v PATH."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Příkaz odeslán: %1. Aktualizuji stav podsvícení…"
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Služba KEncoder Notify je připravená."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Služba běží, světelné reakce jsou ztlumené."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Spouštím KEncoder."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Stav listeneru nelze ověřit (stará služba?)."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Stav podsvícení: %1"
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Stav podsvícení: %1."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Stav podsvícení: chybí encoder v PATH."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Stav podsvícení: nezjištěn."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Zjišťuji dostupnost služby…"
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Zjišťuji registraci listeneru…"
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Zjišťuji skutečný stav klávesnice…"
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Zjišťuji stav klávesnice…"
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Změny se odesílají pouze tlačítky Nastavit a Vypnout."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Zvolte směr vlny před odesláním nastavení."
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "animace"
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "encoder selhal (kód %1): %2"
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "encoder skončil s kódem %1"
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "neplatná odpověď encoder --status --json"
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "podsvícení vypnuto"
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "preset Default"
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "statické podsvícení"
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "Čtu stav klávesnice…"
+msgstr ""
+
+#: gui/kcm/kcm_kencoder.cpp
+msgctxt "KEncoderKcm"
+msgid "časový limit čtení"
+msgstr ""
+
+#: gui/lighting_status.h
+msgctxt "KEncoderLighting"
+msgid "Dýchání"
+msgstr ""
+
+#: gui/lighting_status.h
+msgctxt "KEncoderLighting"
+msgid "Neznámý režim"
+msgstr ""
+
+#: gui/lighting_status.h
+msgctxt "KEncoderLighting"
+msgid "Reakce na stisk"
+msgstr ""
+
+#: gui/lighting_status.h
+msgctxt "KEncoderLighting"
+msgid "Statické"
+msgstr ""
+
+#: gui/lighting_status.h
+msgctxt "KEncoderLighting"
+msgid "Vlna (směr nezjištěn)"
+msgstr ""
+
+#: gui/lighting_status.h
+msgctxt "KEncoderLighting"
+msgid "Z klávesnice: %1, jas %2. Rychlost nezjištěna."
+msgstr ""
+
+#: gui/kcm_notify/kcm_kencoder_notify.cpp
+msgctxt "KEncoderNotifyKcm"
+msgid "Konfigurace je neplatná: %1"
+msgstr ""
+
+#: gui/kcm_notify/kcm_kencoder_notify.cpp
+msgctxt "KEncoderNotifyKcm"
+msgid "Listener KNotify scanner bude dostupný až ve fázi 2."
+msgstr ""
+
+#: gui/kcm_notify/kcm_kencoder_notify.cpp
+msgctxt "KEncoderNotifyKcm"
+msgid "Listener není dostupný v PATH. Nejdřív jej sestavte/nainstalujte."
+msgstr ""
+
+#: gui/kcm_notify/kcm_kencoder_notify.cpp
+msgctxt "KEncoderNotifyKcm"
+msgid "Naslouchání vypnuto. Běžící listener změnu konfigurace načte."
+msgstr ""
+
+#: gui/kcm_notify/kcm_kencoder_notify.cpp
+msgctxt "KEncoderNotifyKcm"
+msgid "Nastavení uloženo, ale listener se nepodařilo spustit."
+msgstr ""
+
+#: gui/kcm_notify/kcm_kencoder_notify.cpp
+msgctxt "KEncoderNotifyKcm"
+msgid "Nelze spustit kencoder-notify."
+msgstr ""
+
+#: gui/kcm_notify/kcm_kencoder_notify.cpp
+msgctxt "KEncoderNotifyKcm"
+msgid "Není dostupný kencoder-notify v PATH."
+msgstr ""
+
+#: gui/kcm_notify/kcm_kencoder_notify.cpp
+msgctxt "KEncoderNotifyKcm"
+msgid "Po provedení se neověřuje readback."
+msgstr ""
+
+#: gui/kcm_notify/kcm_kencoder_notify.cpp
+msgctxt "KEncoderNotifyKcm"
+msgid "Povoleno v konfiguraci. Spuštění procesu neprokazuje registraci v KDE D-Bus."
+msgstr ""
+
+#: gui/kcm_notify/kcm_kencoder_notify.cpp
+msgctxt "KEncoderNotifyKcm"
+msgid "Pravidlo lze přesunout jen o jednu pozici."
+msgstr ""
+
+#: gui/kcm_notify/kcm_kencoder_notify.cpp
+msgctxt "KEncoderNotifyKcm"
+msgid "Pravidlo neexistuje."
+msgstr ""
+
+#: gui/kcm_notify/kcm_kencoder_notify.cpp
+msgctxt "KEncoderNotifyKcm"
+msgid "Pravidlo odstraněno."
+msgstr ""
+
+#: gui/kcm_notify/kcm_kencoder_notify.cpp
+msgctxt "KEncoderNotifyKcm"
+msgid "Pravidlo posunuto dolů."
+msgstr ""
+
+#: gui/kcm_notify/kcm_kencoder_notify.cpp
+msgctxt "KEncoderNotifyKcm"
+msgid "Pravidlo posunuto nahoru."
+msgstr ""
+
+#: gui/kcm_notify/kcm_kencoder_notify.cpp
+msgctxt "KEncoderNotifyKcm"
+msgid "Pravidlo přesunuto na pozici %1."
+msgstr ""
+
+#: gui/kcm_notify/kcm_kencoder_notify.cpp
+msgctxt "KEncoderNotifyKcm"
+msgid "Pravidlo uloženo."
+msgstr ""
+
+#: gui/kcm_notify/kcm_kencoder_notify.cpp
+msgctxt "KEncoderNotifyKcm"
+msgid "Pravidlo vypnuto."
+msgstr ""
+
+#: gui/kcm_notify/kcm_kencoder_notify.cpp
+msgctxt "KEncoderNotifyKcm"
+msgid "Pravidlo zapnuto."
+msgstr ""
+
+#: gui/kcm_notify/kcm_kencoder_notify.cpp
+msgctxt "KEncoderNotifyKcm"
+msgid "Preset Default nelze odstranit."
+msgstr ""
+
+#: gui/kcm_notify/kcm_kencoder_notify.cpp
+msgctxt "KEncoderNotifyKcm"
+msgid "Preset odstraněn."
+msgstr ""
+
+#: gui/kcm_notify/kcm_kencoder_notify.cpp
+msgctxt "KEncoderNotifyKcm"
+msgid "Preset používá pravidlo. Nejdříve upravte nebo odstraňte pravidlo."
+msgstr ""
+
+#: gui/kcm_notify/kcm_kencoder_notify.cpp
+msgctxt "KEncoderNotifyKcm"
+msgid "Preset uložen."
+msgstr ""
+
+#: gui/kcm_notify/kcm_kencoder_notify.cpp
+msgctxt "KEncoderNotifyKcm"
+msgid "Přehrávání nebo návrat do Default selhal (kód %1)."
+msgstr ""
+
+#: gui/kcm_notify/kcm_kencoder_notify.cpp
+msgctxt "KEncoderNotifyKcm"
+msgid "Přehrávání nebo návrat do Default selhal: %1"
+msgstr ""
+
+#: gui/kcm_notify/kcm_kencoder_notify.cpp
+msgctxt "KEncoderNotifyKcm"
+msgid "Sekvence dokončena nebo předána listeneru. Stav zařízení není ověřen readbackem."
+msgstr ""
+
+#: gui/kcm_notify/kcm_kencoder_notify.cpp
+msgctxt "KEncoderNotifyKcm"
+msgid "Sekvence se spouštějí pouze příkazem Přehrát nebo povoleným listenerem. "
+msgstr ""
+
+#: gui/kcm_notify/kcm_kencoder_notify.cpp
+msgctxt "KEncoderNotifyKcm"
+msgid "Spouštím sekvenci, bez hardwarového readbacku…"
+msgstr ""
+
+#: notify/session_policy.cpp
+msgctxt "KEncoderSessionErrors"
+msgid "Nelze dokončit uložení nastavení relace."
+msgstr ""
+
+#: notify/session_policy.cpp
+msgctxt "KEncoderSessionErrors"
+msgid "Nelze otevřít nastavení relace pro zápis."
+msgstr ""
+
+#: notify/session_policy.cpp
+msgctxt "KEncoderSessionErrors"
+msgid "Nelze vytvořit adresář nastavení relace."
+msgstr ""
+
+#: notify/session_policy.cpp
+msgctxt "KEncoderSessionErrors"
+msgid "Nelze číst nastavení relace."
+msgstr ""
+
+#: notify/session_policy.cpp
+msgctxt "KEncoderSessionErrors"
+msgid "Není kam načíst nastavení relace."
+msgstr ""
+
+#: notify/session_policy.cpp
+msgctxt "KEncoderSessionErrors"
+msgid "Neplatný JSON nastavení relace."
+msgstr ""
+
+#: notify/session_policy.cpp
+msgctxt "KEncoderSessionErrors"
+msgid "Nepodporovaná konfigurace relace."
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid " kroků)"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid " · jas "
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid " · rychlost "
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Aktivovat naslouchání notifikacím"
+msgstr ""
+
+#: gui/kcm/ui/main.qml
+msgctxt "main"
+msgid "Animace:"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Aplikace obsahuje: Teams"
+msgstr ""
+
+#: gui/kcm/ui/main.qml
+msgctxt "main"
+msgid "Automatické chování"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Default (návratový stav)"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Default: použije se pouze první krok, bez čekání na jeho trvání."
+msgstr ""
+
+#: gui/kcm/ui/main.qml gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Dýchání"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Efekt:"
+msgstr ""
+
+#: gui/kcm/ui/main.qml
+msgctxt "main"
+msgid "Jas (0 až 3):"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Jas:"
+msgstr ""
+
+#: gui/kcm/ui/main.qml
+msgctxt "main"
+msgid "KEncoder Notify: "
+msgstr ""
+
+#: gui/kcm/ui/main.qml
+msgctxt "main"
+msgid "Klávesnice: "
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Listener KDE watcher"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Listener KNotify scanner (fáze 2)"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Listener KNotify scanner je plánován pro fázi 2 a nyní jej nelze aktivovat."
+msgstr ""
+
+#: gui/kcm/ui/main.qml
+msgctxt "main"
+msgid "Listener: "
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Listener: povolen"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Listener: vypnut"
+msgstr ""
+
+#: gui/kcm/ui/main.qml
+msgctxt "main"
+msgid "Nastavit"
+msgstr ""
+
+#: gui/kcm/ui/main.qml
+msgctxt "main"
+msgid "Nastavit Default"
+msgstr ""
+
+#: gui/kcm/ui/main.qml
+msgctxt "main"
+msgid "Načíst stav"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Nové pravidlo"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Nový preset"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Název pravidla"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Název presetu"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Ochranná prodleva (ms):"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Odstranit vybrané pravidlo?"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Odstranit vybraný preset?"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Opravdu smazat?"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Podmínky (nerozlišují velikost písmen):"
+msgstr ""
+
+#: gui/kcm/ui/main.qml gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Pomalá"
+msgstr ""
+
+#: gui/kcm/ui/main.qml
+msgctxt "main"
+msgid "Použije první krok uloženého presetu Default."
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Použít nastavení listeneru"
+msgstr ""
+
+#: gui/kcm/ui/main.qml
+msgctxt "main"
+msgid "Povolit KEncoder Notify při zamčené nebo zhasnuté obrazovce"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Pořadí kroků (opakování je možné přidáním stejného kroku):"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Pravidla reakcí na notifikace"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Pravidlo je aktivní"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Presety světelných sekvencí"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Přehrát"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Přesunout pravidlo dolů"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Přesunout pravidlo nahoru"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Přetáhnout pravidlo myší"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Přetáhnout pro změnu priority"
+msgstr ""
+
+#: gui/kcm/ui/main.qml
+msgctxt "main"
+msgid "Při skutečném uspání počítače se notifikace nevykonávají."
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Přidat krok"
+msgstr ""
+
+#: gui/kcm/ui/main.qml
+msgctxt "main"
+msgid "Připravenost"
+msgstr ""
+
+#: gui/kcm/ui/main.qml gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Reakce na stisk"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Režim listeneru"
+msgstr ""
+
+#: gui/kcm/ui/main.qml gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Rychlost:"
+msgstr ""
+
+#: gui/kcm/ui/main.qml gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Rychlá"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Smazat"
+msgstr ""
+
+#: gui/kcm/ui/main.qml
+msgctxt "main"
+msgid "Spustit KEncoder"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Spustit preset:"
+msgstr ""
+
+#: gui/kcm/ui/main.qml gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Statické"
+msgstr ""
+
+#: gui/kcm/ui/main.qml gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Střední"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Titulek obsahuje (nepovinné)"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Trvání:"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Uložit krok"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Uložit pravidlo"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Uložit preset"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Upravit"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Upravit pravidlo"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Upravit preset"
+msgstr ""
+
+#: gui/kcm/ui/main.qml
+msgctxt "main"
+msgid "V Plasma 6 se sleduje vypnutí monitorů (DPMS)."
+msgstr ""
+
+#: gui/kcm/ui/main.qml
+msgctxt "main"
+msgid "Vlna (směr nezjištěn)"
+msgstr ""
+
+#: gui/kcm/ui/main.qml
+msgctxt "main"
+msgid "Vlna zleva"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Vlna zleva →"
+msgstr ""
+
+#: gui/kcm/ui/main.qml
+msgctxt "main"
+msgid "Vlna zprava"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Vlna zprava ←"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Vybrán listener KDE watcher. Dostupnost se ověří při spuštění; změny potvrďte tlačítkem Použít."
+msgstr ""
+
+#: gui/kcm/ui/main.qml gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Vypnout"
+msgstr ""
+
+#: gui/kcm/ui/main.qml
+msgctxt "main"
+msgid "Zhasnout klávesnici při spořiči obrazovky"
+msgstr ""
+
+#: gui/kcm/ui/main.qml
+msgctxt "main"
+msgid "Zhasnout klávesnici při zamčení počítače"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Změna listeneru čeká na potvrzení tlačítkem Použít nastavení listeneru."
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Změnit velikost"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Zpráva obsahuje: XYZ"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Zrušit"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Zrušit úpravu"
+msgstr ""
+
+#: gui/kcm/ui/main.qml
+msgctxt "main"
+msgid "encoder není v PATH"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Čekat"
+msgstr ""
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Čekat bez příkazu"
+msgstr ""
+
+#: gui/kcm/ui/main.qml
+msgctxt "main"
+msgid "Čtení přes: "
+msgstr ""

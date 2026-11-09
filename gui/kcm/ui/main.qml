@@ -59,23 +59,23 @@ KCM.SimpleKCM {
 
             Controls.ComboBox {
                 id: animation
-                Kirigami.FormData.label: "Animace:"
+                Kirigami.FormData.label: qsTr("Animace:")
                 Layout.fillWidth: true
                 textRole: "label"
                 valueRole: "value"
                 onActivated: root.draftModified = true
                 model: [
-                    { label: "Statické", value: "static" },
-                    { label: "Dýchání", value: "breathe" },
-                    { label: "Vlna zleva", value: "left_wave" },
-                    { label: "Vlna zprava", value: "right_wave" },
-                    { label: "Reakce na stisk", value: "ripple" },
-                    { label: "Vlna (směr nezjištěn)", value: "wave" }
+                    { label: qsTr("Statické"), value: "static" },
+                    { label: qsTr("Dýchání"), value: "breathe" },
+                    { label: qsTr("Vlna zleva"), value: "left_wave" },
+                    { label: qsTr("Vlna zprava"), value: "right_wave" },
+                    { label: qsTr("Reakce na stisk"), value: "ripple" },
+                    { label: qsTr("Vlna (směr nezjištěn)"), value: "wave" }
                 ]
             }
 
             RowLayout {
-                Kirigami.FormData.label: "Jas (0 až 3):"
+                Kirigami.FormData.label: qsTr("Jas (0 až 3):")
                 Layout.fillWidth: true
 
                 Controls.Slider {
@@ -96,7 +96,7 @@ KCM.SimpleKCM {
 
             Controls.ComboBox {
                 id: speed
-                Kirigami.FormData.label: "Rychlost:"
+                Kirigami.FormData.label: qsTr("Rychlost:")
                 Layout.fillWidth: true
                 enabled: animation.currentValue !== "static"
                 textRole: "label"
@@ -104,9 +104,9 @@ KCM.SimpleKCM {
                 currentIndex: 1
                 onActivated: root.draftModified = true
                 model: [
-                    { label: "Pomalá", value: "slow" },
-                    { label: "Střední", value: "medium" },
-                    { label: "Rychlá", value: "fast" }
+                    { label: qsTr("Pomalá"), value: "slow" },
+                    { label: qsTr("Střední"), value: "medium" },
+                    { label: qsTr("Rychlá"), value: "fast" }
                 ]
             }
         }
@@ -114,7 +114,7 @@ KCM.SimpleKCM {
         RowLayout {
             Layout.fillWidth: true
             Controls.Button {
-                text: "Nastavit"
+                text: qsTr("Nastavit")
                 enabled: !kcm.busy
                 onClicked: {
                     root.draftModified = false
@@ -123,7 +123,7 @@ KCM.SimpleKCM {
                 }
             }
             Controls.Button {
-                text: "Vypnout"
+                text: qsTr("Vypnout")
                 enabled: !kcm.busy
                 onClicked: {
                     root.draftModified = false
@@ -131,10 +131,10 @@ KCM.SimpleKCM {
                 }
             }
             Controls.Button {
-                text: "Nastavit Default"
+                text: qsTr("Nastavit Default")
                 enabled: !kcm.busy
                 Controls.ToolTip.visible: hovered
-                Controls.ToolTip.text: "Použije první krok uloženého presetu Default."
+                Controls.ToolTip.text: qsTr("Použije první krok uloženého presetu Default.")
                 onClicked: {
                     root.draftModified = false
                     kcm.applyDefault()
@@ -145,21 +145,21 @@ KCM.SimpleKCM {
         RowLayout {
             Layout.fillWidth: true
             Controls.Button {
-                text: "Načíst stav"
+                text: qsTr("Načíst stav")
                 enabled: !kcm.busy
                 Controls.ToolTip.visible: hovered
-                Controls.ToolTip.text: "Čtení přes: " + (kcm.encoderPath.length ? kcm.encoderPath : "encoder není v PATH")
+                Controls.ToolTip.text: qsTr("Čtení přes: ") + (kcm.encoderPath.length ? kcm.encoderPath : qsTr("encoder není v PATH"))
                 onClicked: kcm.refreshLightingStatus()
             }
             Controls.Button {
-                text: "Spustit KEncoder"
+                text: qsTr("Spustit KEncoder")
                 onClicked: kcm.launchGui()
             }
         }
 
         Controls.GroupBox {
             id: automaticBehavior
-            title: "Automatické chování"
+            title: qsTr("Automatické chování")
             Layout.fillWidth: true
             Layout.topMargin: Kirigami.Units.largeSpacing * 2
             Layout.bottomMargin: Kirigami.Units.largeSpacing * 2
@@ -183,26 +183,26 @@ KCM.SimpleKCM {
                 spacing: Kirigami.Units.smallSpacing
                 Controls.CheckBox {
                     id: offOnLock
-                    text: "Zhasnout klávesnici při zamčení počítače"
+                    text: qsTr("Zhasnout klávesnici při zamčení počítače")
                     checked: kcm.offOnLock
                     onClicked: kcm.saveSessionPolicy(checked, offOnScreenOff.checked,
                                                      notifyInactive.checked)
                 }
                 Controls.CheckBox {
                     id: offOnScreenOff
-                    text: "Zhasnout klávesnici při spořiči obrazovky"
+                    text: qsTr("Zhasnout klávesnici při spořiči obrazovky")
                     checked: kcm.offOnScreenOff
                     Controls.ToolTip.visible: hovered
-                    Controls.ToolTip.text: "V Plasma 6 se sleduje vypnutí monitorů (DPMS)."
+                    Controls.ToolTip.text: qsTr("V Plasma 6 se sleduje vypnutí monitorů (DPMS).")
                     onClicked: kcm.saveSessionPolicy(offOnLock.checked, checked,
                                                      notifyInactive.checked)
                 }
                 Controls.CheckBox {
                     id: notifyInactive
-                    text: "Povolit KEncoder Notify při zamčené nebo zhasnuté obrazovce"
+                    text: qsTr("Povolit KEncoder Notify při zamčené nebo zhasnuté obrazovce")
                     checked: kcm.notifyWhenInactive
                     Controls.ToolTip.visible: hovered
-                    Controls.ToolTip.text: "Při skutečném uspání počítače se notifikace nevykonávají."
+                    Controls.ToolTip.text: qsTr("Při skutečném uspání počítače se notifikace nevykonávají.")
                     onClicked: kcm.saveSessionPolicy(offOnLock.checked, offOnScreenOff.checked,
                                                      checked)
                 }
@@ -210,7 +210,7 @@ KCM.SimpleKCM {
         }
         Controls.GroupBox {
             id: readinessBox
-            title: "Připravenost"
+            title: qsTr("Připravenost")
             Layout.fillWidth: true
             Layout.topMargin: Kirigami.Units.largeSpacing
             label: Controls.Label {
@@ -237,7 +237,7 @@ KCM.SimpleKCM {
                     }
                     Controls.Label {
                         Layout.fillWidth: true
-                        text: "Klávesnice: " + kcm.keyboardReadinessText
+                        text: qsTr("Klávesnice: ") + kcm.keyboardReadinessText
                         wrapMode: Text.WordWrap
                     }
                 }
@@ -252,7 +252,7 @@ KCM.SimpleKCM {
                     }
                     Controls.Label {
                         Layout.fillWidth: true
-                        text: "KEncoder Notify: " + kcm.notifyReadinessText
+                        text: qsTr("KEncoder Notify: ") + kcm.notifyReadinessText
                         wrapMode: Text.WordWrap
                     }
                 }
@@ -267,7 +267,7 @@ KCM.SimpleKCM {
                     }
                     Controls.Label {
                         Layout.fillWidth: true
-                        text: "Listener: " + kcm.listenerReadinessText
+                        text: qsTr("Listener: ") + kcm.listenerReadinessText
                         wrapMode: Text.WordWrap
                     }
                 }

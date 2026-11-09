@@ -134,6 +134,46 @@ GitHub Actions builds Debian 13 packages for amd64 and arm64. CLI and GUI releas
 - [Plasma session lighting policy](docs/KENCODER-SESSION-POLICY.md)
 - [Encoder protocol notes](docs/OMEN-ENCODER-HID-PROTOCOL.md)
 
+## Translations
+
+The Qt Widgets application and both Plasma 6 KCM modules share a single
+gettext template (`translations/kencoder.pot`). Czech is the source language;
+English, Slovak, Ukrainian, German, Russian and Polish are shipped as
+editable PO catalogs and compiled into dynamically loaded Qt QM files.
+
+See [the English translation guide](translations/README.md) for adding messages,
+updating the catalogs, testing translations and overriding language files.
+
+### Localized encoder(1) manual pages
+
+The encoder(1) manual is maintained in Czech as the canonical
+reference, with complete translations available in six languages:
+
+- English (en)
+- Slovak (sk)
+- Ukrainian (uk)
+- German (de)
+- Russian (ru)
+- Polish (pl)
+
+All translated manual pages are included in the Debian packaging
+of the standalone `encoder` CLI component, not `kencoder`.
+
+During package builds, Debian installs localized manual pages under
+`/usr/share/man/<language>/man1/encoder.1.gz`. The original Czech
+manual remains the default.
+
+The translated pages cover the complete command reference,
+including options, examples, HID permissions, status readback,
+option precedence, known limitations, and exit codes.
+
+Localized manual pages are included in the standalone `encoder` Debian
+package starting with version 0.2.1. The CLI commands and HID behavior
+remain unchanged from 0.2.0.
+
+See docs/man/README.md for translation maintenance and
+verification instructions.
+
 ## License
 
 BSD 3-Clause License.

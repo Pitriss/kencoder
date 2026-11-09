@@ -4,6 +4,7 @@
 
 // Common, side-effect-free parser for the encoder --status --json contract.
 // This header is QtCore-only: neither UI requires KF6 to parse status.
+#include <QCoreApplication>
 #include <QByteArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -22,17 +23,17 @@ struct EncoderLightingStatus
         if (mode == QLatin1String("off"))
             effect = QStringLiteral("Vypnuto");
         else if (mode == QLatin1String("static"))
-            effect = QStringLiteral("Statické");
+            effect = QCoreApplication::translate("KEncoderLighting", "Statické");
         else if (mode == QLatin1String("breathe"))
-            effect = QStringLiteral("Dýchání");
+            effect = QCoreApplication::translate("KEncoderLighting", "Dýchání");
         else if (mode == QLatin1String("ripple"))
-            effect = QStringLiteral("Reakce na stisk");
+            effect = QCoreApplication::translate("KEncoderLighting", "Reakce na stisk");
         else if (mode == QLatin1String("wave"))
-            effect = QStringLiteral("Vlna (směr nezjištěn)");
+            effect = QCoreApplication::translate("KEncoderLighting", "Vlna (směr nezjištěn)");
         else
-            effect = QStringLiteral("Neznámý režim");
+            effect = QCoreApplication::translate("KEncoderLighting", "Neznámý režim");
 
-        return QStringLiteral("Z klávesnice: %1, jas %2. Rychlost nezjištěna.")
+        return QCoreApplication::translate("KEncoderLighting", "Z klávesnice: %1, jas %2. Rychlost nezjištěna.")
             .arg(effect).arg(brightness);
     }
 };

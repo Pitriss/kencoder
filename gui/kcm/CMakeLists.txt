@@ -21,6 +21,7 @@ set_target_properties(kcm_kencoder PROPERTIES PREFIX "")
 set_target_properties(kcm_kencoder PROPERTIES AUTOMOC ON)
 target_sources(kcm_kencoder PRIVATE
     kcm_kencoder.cpp
+    "${CMAKE_CURRENT_SOURCE_DIR}/../translation_loader.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../notify/session_policy.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../notify/config.cpp"
 )

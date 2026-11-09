@@ -6,6 +6,7 @@ kcmutils_add_qml_kcm(kcm_kencoder_notify)
 set_target_properties(kcm_kencoder_notify PROPERTIES PREFIX "" AUTOMOC ON)
 target_sources(kcm_kencoder_notify PRIVATE
     kcm_kencoder_notify.cpp
+    "${CMAKE_CURRENT_SOURCE_DIR}/../translation_loader.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../notify/config.cpp"
 )
 target_link_libraries(kcm_kencoder_notify PRIVATE

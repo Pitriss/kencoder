@@ -1,3 +1,12 @@
+kencoder (0.3.0) unstable; urgency=medium
+
+  * Localize the GUI and both Plasma KCM modules with six language catalogs.
+  * Add runtime language override, shared PO/POT catalogs and translation tests.
+  * Package Qt translations and fix notification KCM QML warnings.
+  * Document six localized encoder(1) pages for the independent CLI release.
+
+ -- Pitriss <5106460+Pitriss@users.noreply.github.com>  Mon, 09 Nov 2026 09:45:00 +0100
+
 kencoder (0.2.1) unstable; urgency=medium
 
   * Document the released desktop, notification and session-policy features.
