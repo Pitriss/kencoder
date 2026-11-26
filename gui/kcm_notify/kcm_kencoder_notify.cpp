@@ -8,6 +8,11 @@
 #include <KQuickConfigModule>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QDBusConnection>
+#include <QDBusConnectionInterface>
+#include <QDBusMessage>
+#include <QDBusReply>
+#include <QMetaType>
 #include <QProcess>
 #include <QStandardPaths>
 #include <QUuid>
@@ -68,13 +73,8 @@ public:
 
     Q_INVOKABLE bool applyEssentials(bool enabled, const QString &backend)
     {
-        if (enabled && backend != QLatin1String(KEncoderNotify::kWatcherBackend)) {
+        if (enabled && backend == QLatin1String(KEncoderNotify::kFutureBackend)) {
             setFeedback(QCoreApplication::translate("KEncoderNotifyKcm", "Listener KNotify scanner bude dostupný až ve fázi 2."));
-            return false;
-        }
-        const QString exe = QStandardPaths::findExecutable(QStringLiteral("kencoder-notify"));
-        if (enabled && exe.isEmpty()) {
-            setFeedback(QCoreApplication::translate("KEncoderNotifyKcm", "Listener není dostupný v PATH. Nejdřív jej sestavte/nainstalujte."));
             return false;
         }
         Configuration updated = config_;
@@ -87,14 +87,54 @@ public:
         }
         config_ = updated;
         Q_EMIT essentialsChanged();
-        if (enabled && !QProcess::startDetached(exe, {QStringLiteral("--daemon")})) {
-            // Persisted state remains enabled; show failure explicitly.
-            setFeedback(QCoreApplication::translate("KEncoderNotifyKcm", "Nastavení uloženo, ale listener se nepodařilo spustit."));
+
+        auto bus = QDBusConnection::sessionBus();
+        if (!bus.isConnected() || !bus.interface()) {
+            setFeedback(QCoreApplication::translate("KEncoderNotifyKcm",
+                "Nastavení uloženo, ale uživatelský D-Bus není dostupný."));
             return false;
         }
-        setFeedback(enabled
-            ? QCoreApplication::translate("KEncoderNotifyKcm", "Povoleno v konfiguraci. Spuštění procesu neprokazuje registraci v KDE D-Bus.")
-            : QCoreApplication::translate("KEncoderNotifyKcm", "Naslouchání vypnuto. Běžící listener změnu konfigurace načte."));
+        const QString service = QStringLiteral("org.kencoder.Notify1");
+        const QDBusReply<bool> present = bus.interface()->isServiceRegistered(service);
+        if (!present.isValid()) {
+            setFeedback(QCoreApplication::translate("KEncoderNotifyKcm",
+                "Nastavení uloženo, ale stav listeneru se nepodařilo ověřit."));
+            return false;
+        }
+        if (present.value()) {
+            const auto request = QDBusMessage::createMethodCall(
+                service, QStringLiteral("/org/kencoder/Notify1"), service,
+                QStringLiteral("Reload"));
+            const auto reply = bus.call(request, QDBus::Block, 1500);
+            if (reply.type() != QDBusMessage::ReplyMessage || reply.arguments().size() != 1 ||
+                reply.arguments().first().userType() != QMetaType::Bool ||
+                !reply.arguments().first().toBool()) {
+                setFeedback(QCoreApplication::translate("KEncoderNotifyKcm",
+                    "Nastavení uloženo, ale běžící listener nepotvrdil načtení konfigurace."));
+                return false;
+            }
+            setFeedback(QCoreApplication::translate("KEncoderNotifyKcm",
+                "Nastavení uloženo a běžící listener potvrdil načtení konfigurace."));
+            return true;
+        }
+        if (!enabled) {
+            setFeedback(QCoreApplication::translate("KEncoderNotifyKcm",
+                "Naslouchání vypnuto a nastavení uloženo."));
+            return true;
+        }
+        const QString exe = QStandardPaths::findExecutable(QStringLiteral("kencoder-notify"));
+        if (exe.isEmpty()) {
+            setFeedback(QCoreApplication::translate("KEncoderNotifyKcm",
+                "Nastavení uloženo, ale listener není dostupný v PATH."));
+            return false;
+        }
+        if (!QProcess::startDetached(exe, {QStringLiteral("--daemon")})) {
+            setFeedback(QCoreApplication::translate("KEncoderNotifyKcm",
+                "Nastavení uloženo, ale listener se nepodařilo spustit."));
+            return false;
+        }
+        setFeedback(QCoreApplication::translate("KEncoderNotifyKcm",
+            "Nastavení uloženo a spuštění listeneru vyžádáno; registrace v D-Bus není ověřena."));
         return true;
     }
 

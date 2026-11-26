@@ -11,7 +11,12 @@ target_sources(kcm_kencoder_notify PRIVATE
 )
 target_link_libraries(kcm_kencoder_notify PRIVATE
     Qt6::Quick
+    Qt6::DBus
     KF6::CoreAddons
     KF6::KCMUtils
     KF6::KCMUtilsQuick
 )
+
+# KCM invokes the existing listener through D-Bus (Reload).
+find_package(Qt6 REQUIRED COMPONENTS DBus)
+target_link_libraries(kcm_kencoder_notify PRIVATE Qt6::DBus)

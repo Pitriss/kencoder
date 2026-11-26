@@ -1023,6 +1023,21 @@ msgstr "Слушатель KDE watcher"
 
 #: gui/kcm_notify/ui/main.qml
 msgctxt "main"
+msgid "Vlastní vstup (D-Bus API)"
+msgstr "Пользовательский ввод (D-Bus API)"
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
+msgid "Vlastní backend přijímá události přes D-Bus API."
+msgstr "Пользовательский бэкенд принимает события через D-Bus API. Инструкция: docs/KENCODER-NOTIFY-API.md."
+
+#: gui/kcm_notify/kcm_kencoder_notify.cpp
+msgctxt "KEncoderNotifyKcm"
+msgid "Vlastní backend aktivován. Události odešlete pomocí kencoder-notify --submit nebo D-Bus API."
+msgstr "Пользовательский бэкенд включён. Отправляйте события через kencoder-notify --submit или D-Bus API."
+
+#: gui/kcm_notify/ui/main.qml
+msgctxt "main"
 msgid "Listener KNotify scanner (fáze 2)"
 msgstr "Слушатель KNotify scanner (этап 2)"
 

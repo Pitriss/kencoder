@@ -178,10 +178,11 @@ bool load(Configuration *out, QString *error)
 bool validate(const Configuration &config, QString *error)
 {
     if (config.backend != QLatin1String(kWatcherBackend) &&
+        config.backend != QLatin1String(kCustomBackend) &&
         config.backend != QLatin1String(kFutureBackend))
         return fail(error, QCoreApplication::translate("KEncoderErrors", "Neznámý backend notifikací."));
-    // Future backend can be selected in a file but must never activate silently.
-    if (config.enabled && config.backend != QLatin1String(kWatcherBackend))
+    // The unimplemented scanner cannot be enabled. Custom API is a real alternative.
+    if (config.enabled && config.backend == QLatin1String(kFutureBackend))
         return fail(error, QCoreApplication::translate("KEncoderErrors", "Backend KNotify scanner zatím není implementován."));
 
     QSet<QString> ids;

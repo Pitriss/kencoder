@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(kencoder-notify VERSION 0.3.0 LANGUAGES CXX)
+project(kencoder-notify VERSION 0.4.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
@@ -8,6 +8,9 @@ add_executable(kencoder-notify main.cpp config.cpp session_policy.cpp)
 target_link_libraries(kencoder-notify PRIVATE Qt6::Core Qt6::DBus)
 include(GNUInstallDirs)
 install(TARGETS kencoder-notify RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+# Ship the approved public integration API with the kencoder Debian package.
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../docs/KENCODER-NOTIFY-API.md"
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/doc/kencoder")
 # Start once per Plasma session, even when notification listening itself is off.
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../packaging/kencoder-notify-autostart.desktop"
         DESTINATION "/etc/xdg/autostart")

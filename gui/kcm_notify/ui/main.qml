@@ -30,9 +30,12 @@ KCM.SimpleKCM {
         function onFeedbackChanged() { root.showStatus(kcm.feedback) }
     }
     function showListenerHint() {
-        root.showStatus(backendCombo.currentValue === "kde-watcher"
-            ? qsTr("Vybrán listener KDE watcher. Dostupnost se ověří při spuštění; změny potvrďte tlačítkem Použít.")
-            : qsTr("Listener KNotify scanner je plánován pro fázi 2 a nyní jej nelze aktivovat."))
+        if (backendCombo.currentValue === "custom-api")
+            root.showStatus(qsTr("Vlastní backend přijímá události přes D-Bus API."))
+        else if (backendCombo.currentValue === "kde-watcher")
+            root.showStatus(qsTr("Vybrán listener KDE watcher. Dostupnost se ověří při spuštění; změny potvrďte tlačítkem Použít."))
+        else
+            root.showStatus(qsTr("Listener KNotify scanner je plánován pro fázi 2 a nyní jej nelze aktivovat."))
     }
 
     function presetById(id) {
@@ -88,13 +91,14 @@ KCM.SimpleKCM {
                 valueRole: "value"
                 model: [
                     { label: qsTr("Listener KDE watcher"), value: "kde-watcher" },
+                    { label: qsTr("Vlastní vstup (D-Bus API)"), value: "custom-api" },
                     { label: qsTr("Listener KNotify scanner (fáze 2)"), value: "knotify-scanner" }
                 ]
-                currentIndex: kcm.backend === "knotify-scanner" ? 1 : 0
+                currentIndex: kcm.backend === "custom-api" ? 1 : kcm.backend === "knotify-scanner" ? 2 : 0
                 delegate: Controls.ItemDelegate {
                     width: backendCombo.width
                     text: modelData.label
-                    enabled: index === 0
+                    enabled: index !== 2
                     highlighted: backendCombo.highlightedIndex === index
                     onClicked: {
                         backendCombo.currentIndex = index

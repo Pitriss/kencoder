@@ -1,3 +1,13 @@
+kencoder (0.4.0) unstable; urgency=medium
+
+  * Add custom-api as an alternative notification input backend.
+  * Expose SubmitNotification through the per-user D-Bus service and CLI.
+  * Integrate backend selection and daemon reload with the notification KCM.
+  * Preserve rule matching, cooldowns and Default restoration across backends.
+  * Add public API documentation and isolated no-HID regression tests.
+
+ -- Pitriss <5106460+Pitriss@users.noreply.github.com>  Thu, 26 Nov 2026 08:30:00 +0100
+
 kencoder (0.3.0) unstable; urgency=medium
 
   * Localize the GUI and both Plasma KCM modules with six language catalogs.

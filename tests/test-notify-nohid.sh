@@ -279,4 +279,10 @@ fi
 printf 'PASS: malformed or unsupported config rejected\n'
 printf '==> Verify session policy in a separate isolated environment\n'
 bash ./tests/test-session-policy-nohid.sh
-printf 'PASS: notify phase-1 build and tests\nKCM stage: %s\nLog: %s\n' "$PWD/.tmp/kencoder-notify-stage" "$log"
+if command -v dbus-run-session >/dev/null 2>&1 && command -v dbus-send >/dev/null 2>&1; then
+    printf '==> Verify custom-api backend through a private D-Bus session\n'
+    bash ./tests/test-notify-custom-nohid.sh
+else
+    printf 'SKIP: custom-api test requires dbus-run-session and dbus-send\n'
+fi
+printf 'PASS: notify build and tests\nKCM stage: %s\nLog: %s\n' "$PWD/.tmp/kencoder-notify-stage" "$log"

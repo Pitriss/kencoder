@@ -53,6 +53,8 @@ else
   cp -a "$root/gui" "$stage/gui"
   cp -a "$root/notify" "$stage/notify"
   cp -a "$root/translations" "$stage/translations"
+  # The notifier CMake install rule needs the approved public API document.
+  install -Dm644 "$root/docs/KENCODER-NOTIFY-API.md" "$stage/docs/KENCODER-NOTIFY-API.md"
   mkdir -p "$stage/packaging"
   cp "$root/packaging/kencoder.desktop" "$root/packaging/kencoder.png" \
      "$root/packaging/kencoder-notify-autostart.desktop" "$stage/packaging/"
@@ -141,6 +143,11 @@ if [[ "$component" == kencoder ]]; then
       echo "Incomplete kencoder package: missing language $lang" >&2; exit 1;
     }
   done
+  # Verify the public API is present in the shipped .deb (plain or compressed).
+  [[ "$contents" == *'/usr/share/doc/kencoder/KENCODER-NOTIFY-API.md'* ]] || {
+    echo 'Incomplete kencoder package: missing KEncoder Notify public API documentation' >&2
+    exit 1
+  }
   echo 'KEncoder package contents and runtime dependencies: PASS'
 fi
 

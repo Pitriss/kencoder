@@ -9,6 +9,7 @@
 namespace KEncoderNotify {
 
 inline constexpr const char *kWatcherBackend = "kde-watcher";
+inline constexpr const char *kCustomBackend = "custom-api";
 inline constexpr const char *kFutureBackend = "knotify-scanner";
 inline constexpr const char *kDefaultPresetId = "default";
 

@@ -36,6 +36,8 @@ constexpr const char *kPlasmaInterface = "org.kde.NotificationManager";
 constexpr int kMaxPendingExecutions = 16; // Execution backpressure, NOT a preset/rule limit.
 // Refuse forwarding to an old daemon whose player can omit Default restoration.
 constexpr uint kPlaybackProtocolVersion = 2;
+// Public custom input method is versioned independently of playback.
+constexpr uint kSubmissionProtocolVersion = 1;
 
 QStringList commandArguments(const QJsonObject &step)
 {
@@ -309,6 +311,10 @@ public:
 public Q_SLOTS:
     Q_SCRIPTABLE bool Reload();
     Q_SCRIPTABLE bool PlayPreset(const QString &id);
+    // D-Bus signature: SubmitNotification(sss) -> b; true means queued, not played.
+    Q_SCRIPTABLE bool SubmitNotification(const QString &app, const QString &title,
+                                         const QString &body);
+    Q_SCRIPTABLE uint SubmissionProtocolVersion();
     Q_SCRIPTABLE uint PlaybackProtocolVersion();
     Q_SCRIPTABLE uint SessionPolicyProtocolVersion();
     Q_SCRIPTABLE QString ListenerStatus();
@@ -374,7 +380,8 @@ public:
         });
         connect(&reloadTimer_, &QTimer::timeout, this, [this] { reload(); });
         connect(&registrationRetry_, &QTimer::timeout, this, [this] {
-            if (config_.enabled && !registered_) registerWatcher();
+            if (config_.enabled && config_.backend == QLatin1String(KEncoderNotify::kWatcherBackend) &&
+                !registered_) registerWatcher();
         });
         connect(&fileWatcher_, &QFileSystemWatcher::directoryChanged, this,
                 [this](const QString &) { reloadTimer_.start(); });
@@ -383,7 +390,8 @@ public:
         connect(&plasmaWatcher_, &QDBusServiceWatcher::serviceOwnerChanged, this,
                 [this](const QString &, const QString &, const QString &newOwner) {
             registered_ = false;
-            if (!newOwner.isEmpty() && config_.enabled)
+            if (!newOwner.isEmpty() && config_.enabled &&
+                config_.backend == QLatin1String(KEncoderNotify::kWatcherBackend))
                 registerWatcher();
         });
     }
@@ -447,6 +455,8 @@ public:
             requestedMute = true;
         }
         const bool newlyMuted = requestedMute && !muted_;
+        const bool inputSourceChanged = config_.enabled != fresh.enabled ||
+                                        config_.backend != fresh.backend;
         muted_ = requestedMute;
         config_ = fresh;
         policy_ = policy;
@@ -455,10 +465,11 @@ public:
         if (newlyMuted && !player_.idle())
             player_.forceState(guarded_ ? offStep() : defaultStep(config_));
         lastTriggered_.clear();
-        if (!config_.enabled) {
+        if (inputSourceChanged) player_.clearQueued();
+        if (!config_.enabled || config_.backend != QLatin1String(KEncoderNotify::kWatcherBackend)) {
             registrationRetry_.stop();
             unregisterWatcher();
-            player_.clearQueued();
+            if (!config_.enabled) player_.clearQueued();
         } else {
             registrationRetry_.start();
             if (!registered_) registerWatcher();
@@ -470,6 +481,9 @@ public:
     QString listenerStatus() const
     {
         if (!config_.enabled) return QStringLiteral("disabled");
+        // 'active' for custom means the API is ready, not that a bridge is connected.
+        if (config_.backend == QLatin1String(KEncoderNotify::kCustomBackend))
+            return QStringLiteral("active");
         return registered_ ? QStringLiteral("active") : QStringLiteral("unavailable");
     }
     bool notificationsMuted() const { return muted_; }
@@ -496,14 +510,25 @@ public:
         return player_.enqueue(preset);
     }
 
-    void onNotification(uint id, uint replacesId, const QString &app,
+    bool submitNotification(const QString &app, const QString &title, const QString &body)
+    {
+        // Bound inputs from same-session third-party clients before rule matching.
+        if (app.size() > 256 || title.size() > 1024 || body.size() > 8192 ||
+            (app.isEmpty() && title.isEmpty() && body.isEmpty()))
+            return false;
+        return onNotification(true, 0, app, title, body);
+    }
+
+    bool onNotification(bool custom, uint replacesId, const QString &app,
                         const QString &title, const QString &body)
     {
-        Q_UNUSED(id);
-        // Changes to an existing notification can be frequent. Trigger only for new items.
-        if (replacesId != 0 || muted_ || !config_.enabled || !registered_ ||
+        // Exactly one input backend is active. Updates of KDE notifications are ignored.
+        const QString expected = QString::fromLatin1(custom ? KEncoderNotify::kCustomBackend
+                                                             : KEncoderNotify::kWatcherBackend);
+        if (config_.backend != expected || replacesId != 0 || muted_ || !config_.enabled ||
+            (!custom && !registered_) ||
             (!policy_.notifyWhenInactive && (locked_ || screenOff_)))
-            return;
+            return false;
         for (const auto &entry : config_.rules) {
             const auto rule = entry.toObject();
             if (!ruleMatches(rule, app, title, body))
@@ -514,12 +539,13 @@ public:
             if (lastTriggered_.contains(id) && now - lastTriggered_.value(id) < cooldown)
                 continue;
             const QString presetId = rule.value(QStringLiteral("preset_id")).toString();
-            // Ordered priority: the first eligible matching rule wins.
+            // True acknowledges queueing only, never physical LED completion.
             if (play(presetId)) {
                 lastTriggered_.insert(id, now);
-                break;
+                return true;
             }
         }
+        return false;
     }
 
 private Q_SLOTS:
@@ -603,6 +629,8 @@ private:
 
     bool registerWatcher()
     {
+        if (!config_.enabled || config_.backend != QLatin1String(KEncoderNotify::kWatcherBackend))
+            return false;
         if (registered_)
             return true;
         auto msg = QDBusMessage::createMethodCall(QString::fromLatin1(kPlasmaService),
@@ -658,11 +686,18 @@ void WatcherObject::Notify(uint id, const QString &app_name, uint replaces_id,
     Q_UNUSED(actions);
     Q_UNUSED(hints);
     Q_UNUSED(timeout);
-    owner_->onNotification(id, replaces_id, app_name, summary, body);
+    Q_UNUSED(id);
+    owner_->onNotification(false, replaces_id, app_name, summary, body);
 }
 ControlObject::ControlObject(Daemon *owner) : QObject(owner), owner_(owner) {}
 bool ControlObject::Reload() { return owner_->reload(); }
 bool ControlObject::PlayPreset(const QString &id) { return owner_->playManual(id); }
+bool ControlObject::SubmitNotification(const QString &app, const QString &title,
+                                       const QString &body)
+{
+    return owner_->submitNotification(app, title, body);
+}
+uint ControlObject::SubmissionProtocolVersion() { return kSubmissionProtocolVersion; }
 uint ControlObject::PlaybackProtocolVersion() { return kPlaybackProtocolVersion; }
 uint ControlObject::SessionPolicyProtocolVersion() { return 1; }
 QString ControlObject::ListenerStatus() { return owner_->listenerStatus(); }
@@ -706,8 +741,26 @@ int main(int argc, char **argv)
     app.setApplicationName(QStringLiteral("kencoder-notify"));
     const QStringList args = app.arguments();
     if (args.size() == 2 && args.at(1) == QLatin1String("--help")) {
-        QTextStream(stdout) << "kencoder-notify --daemon | --check | --session-policy | --play ID [--dry-run] | --simulate APP TITLE BODY\n";
+        QTextStream(stdout) << "kencoder-notify --daemon | --check | --session-policy | --play ID [--dry-run] | --simulate APP TITLE BODY | --submit APP TITLE BODY\n";
         return 0;
+    }
+    if (args.size() >= 2 && args.at(1) == QLatin1String("--submit")) {
+        if (args.size() != 5) {
+            qCritical() << "Usage: kencoder-notify --submit APP TITLE BODY";
+            return 2;
+        }
+        // Forward to the existing per-user daemon. Never execute the lighting CLI here.
+        auto request = QDBusMessage::createMethodCall(
+            QString::fromLatin1(kNotifyService), QString::fromLatin1(kNotifyObject),
+            QString::fromLatin1(kNotifyService), QStringLiteral("SubmitNotification"));
+        request.setArguments({args.at(2), args.at(3), args.at(4)});
+        const auto reply = QDBusConnection::sessionBus().call(request, QDBus::Block, 1500);
+        if (reply.type() != QDBusMessage::ReplyMessage || reply.arguments().size() != 1 ||
+            !reply.arguments().first().isValid()) {
+            qCritical() << "kencoder-notify: daemon unavailable or submission API incompatible";
+            return 3;
+        }
+        return reply.arguments().first().toBool() ? 0 : 4;
     }
     if (args.size() == 2 && args.at(1) == QLatin1String("--session-policy")) {
         KEncoderSession::Policy state;
